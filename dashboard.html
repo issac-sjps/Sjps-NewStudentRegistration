@@ -3,112 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>註冊組管理系統 Pro</title>
+    <title>註冊組管理系統 Pro+</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .sidebar-active { background: #334155; border-left: 4px solid #60a5fa; font-weight: bold; }
-        .table-scroll { overflow-y: auto; max-height: calc(100vh - 250px); }
-        /* 強化彈窗樣式：加大寬度、允許捲動 */
+        /* 左右滑動關鍵 CSS */
+        .table-container { 
+            overflow-x: auto; 
+            overflow-y: auto; 
+            max-height: calc(100vh - 250px);
+            border-radius: 1rem;
+        }
+        table { min-width: 1500px; } /* 強制表格寬度，確保可以左右橫移 */
+        th { cursor: pointer; position: sticky; top: 0; z-index: 20; background: #f8fafc; }
+        th:hover { background: #f1f5f9; }
+        
         #editModal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
         .modal-content { max-height: 85vh; overflow-y: auto; }
     </style>
 </head>
-<body class="bg-slate-100 flex h-screen overflow-hidden">
+<body class="bg-slate-100 flex h-screen overflow-hidden text-slate-900">
 
     <div id="editModal" class="items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-8 max-w-4xl w-full shadow-2xl modal-content" onclick="event.stopPropagation()">
+        <div class="bg-white rounded-3xl p-8 max-w-5xl w-full shadow-2xl modal-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h3 class="text-2xl font-black text-slate-800">詳細資料編輯</h3>
+                <h3 class="text-2xl font-black">詳細資料編輯</h3>
                 <span id="displayId" class="text-sm font-mono bg-slate-100 px-3 py-1 rounded-full text-slate-500"></span>
             </div>
-            
-            <div id="dynamicFields" class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                </div>
-
+            <div id="dynamicFields" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
             <div class="flex space-x-4 mt-10 border-t pt-6">
-                <button id="closeModalBtn" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold hover:bg-slate-200 transition">取消返回</button>
-                <button id="saveEditBtn" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg hover:bg-blue-700 transition">儲存所有變更</button>
+                <button id="closeModalBtn" class="flex-1 py-4 bg-slate-100 rounded-2xl font-bold">取消</button>
+                <button id="saveEditBtn" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg">儲存變更</button>
             </div>
         </div>
     </div>
 
-    <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col shadow-2xl">
-        <div class="p-6 border-b border-slate-700 font-black text-xl">註冊組後台</div>
+    <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col shadow-2xl shrink-0">
+        <div class="p-6 border-b border-slate-700 font-black text-xl">註冊組管理</div>
         <nav class="flex-1 p-4 space-y-2">
-            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active">📊 統計概況</button>
+            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active">📊 數據統計</button>
             <button data-target="managePanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">🗂️ 學生管理</button>
             <button data-target="classPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">✏️ 編班比對</button>
-            <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">📥 測試與匯入</button>
+            <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">📥 匯入/測試</button>
         </nav>
     </aside>
 
     <main class="flex-1 flex flex-col overflow-hidden">
-        <section id="dashboardPanel" class="panel-section block h-full p-8 overflow-y-auto">
-            <h2 class="text-3xl font-black mb-6">數據統計</h2>
-            <div id="statCards" class="grid grid-cols-4 gap-4 mb-8">
-                </div>
-            <div class="grid grid-cols-2 gap-6 h-80">
-                <div class="bg-white p-6 rounded-2xl border"><canvas id="anaPieChart"></canvas></div>
-                <div class="bg-white p-6 rounded-2xl border"><canvas id="anaBarChart"></canvas></div>
-            </div>
-        </section>
-
         <section id="managePanel" class="panel-section hidden h-full p-8 flex flex-col">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-black">學生名冊 (全欄位檢視)</h2>
-                <div class="space-x-2">
-                    <input type="text" id="searchInput" placeholder="搜尋姓名或身分證..." class="border p-2 rounded-lg text-sm">
-                    <button id="exportBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">匯出 Excel</button>
+                <div>
+                    <h2 class="text-2xl font-black">學生名冊</h2>
+                    <p class="text-xs text-slate-400">點擊表頭可切換排序 (報到狀態/班級/姓名)</p>
+                </div>
+                <div class="flex space-x-2">
+                    <input type="text" id="searchInput" placeholder="關鍵字搜尋..." class="border px-4 py-2 rounded-xl text-sm outline-none focus:border-blue-500">
+                    <button id="exportBtn" class="bg-green-600 text-white px-4 py-2 rounded-xl text-sm">匯出 Excel</button>
                 </div>
             </div>
-            <div class="bg-white flex-1 rounded-2xl shadow-sm border overflow-hidden">
-                <div class="table-scroll">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-50 border-b sticky top-0 z-10">
-                            <tr>
-                                <th class="p-4">狀態</th>
-                                <th class="p-4">編班</th>
-                                <th class="p-4">姓名</th>
-                                <th class="p-4">身分證號</th>
-                                <th class="p-4">本土語</th>
-                                <th class="p-4">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="studentTableBody" class="divide-y cursor-pointer"></tbody>
-                    </table>
-                </div>
+
+            <div class="bg-white flex-1 rounded-2xl shadow-sm border table-container">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b">
+                            <th class="p-4" onclick="toggleSort('報到狀態')">報到狀態 ↕️</th>
+                            <th class="p-4" onclick="toggleSort('班級')">編班 ↕️</th>
+                            <th class="p-4" onclick="toggleSort('姓名')">姓名 ↕️</th>
+                            <th class="p-4">身分證號</th>
+                            <th class="p-4">出生日期</th>
+                            <th class="p-4">監護人</th>
+                            <th class="p-4">聯絡電話</th>
+                            <th class="p-4">本土語</th>
+                            <th class="p-4">通訊地址</th>
+                            <th class="p-4">戶籍地址</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody" class="divide-y cursor-pointer">
+                        </tbody>
+                </table>
             </div>
         </section>
 
-        <section id="classPanel" class="panel-section hidden p-10 h-full overflow-y-auto">
-             <div class="max-w-4xl mx-auto bg-white p-8 rounded-3xl shadow-xl border">
-                <h2 class="text-xl font-bold mb-4">✏️ 貼上名單編班比對</h2>
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <input type="text" id="inputClassName" placeholder="輸入班級 (如 101)" class="w-full border p-3 rounded-xl mb-4 outline-none focus:border-blue-500">
-                        <textarea id="rawNameList" rows="10" class="w-full border p-3 rounded-xl font-mono text-sm" placeholder="01 黃于恩"></textarea>
-                        <button id="matchNamesBtn" class="w-full mt-4 bg-blue-600 text-white py-4 rounded-xl font-bold">執行比對</button>
-                    </div>
-                    <div id="matchLog" class="bg-slate-50 p-4 rounded-xl border text-xs h-80 overflow-y-auto"></div>
-                </div>
-            </div>
+        <section id="dashboardPanel" class="panel-section block h-full p-8 overflow-y-auto">
+             <h2 class="text-3xl font-black mb-6">系統概況</h2>
+             <div class="grid grid-cols-4 gap-4 mb-8" id="statSummary"></div>
+             <div class="h-80"><canvas id="anaPieChart"></canvas></div>
         </section>
-
-        <section id="importPanel" class="panel-section hidden p-10">
-            <div class="max-w-md mx-auto space-y-6 text-center">
-                 <button id="createTestStudentBtn" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold">1. 建立測試生 (T123456789)</button>
-                 <div class="bg-white p-6 rounded-2xl shadow border">
-                    <h3 class="font-bold mb-4">2. 匯入全欄位 Excel</h3>
-                    <input type="file" id="excelFile" class="mb-4 w-full">
-                    <button id="importBtn" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">執行匯入</button>
-                </div>
-                <div class="pt-10">
-                    <input type="text" id="resetInput" placeholder="輸入「確認清空」" class="border p-2 rounded mb-2 text-center w-full">
-                    <button id="resetBtn" class="w-full bg-red-600 text-white py-2 rounded font-bold opacity-20" disabled>刪除所有資料</button>
-                </div>
-            </div>
+        
+        <section id="importPanel" class="panel-section hidden p-10 h-full overflow-y-auto">
+             <div class="max-w-md mx-auto space-y-4">
+                 <button id="createTestStudentBtn" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold">建立測試生</button>
+                 <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                    <input type="file" id="excelFile" class="mb-4 w-full text-sm">
+                    <button id="importBtn" class="w-full bg-slate-800 text-white py-3 rounded-2xl font-bold">執行 Excel 匯入</button>
+                 </div>
+             </div>
         </section>
     </main>
 
