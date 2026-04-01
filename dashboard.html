@@ -1,114 +1,44 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新生報到管理後台 - 新莊國小</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .sidebar-active { background: #334155; border-left: 4px solid #60a5fa; font-weight: bold; }
-        .table-container { overflow: auto; max-height: calc(100vh - 280px); }
-        table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
-        th { position: sticky; top: 0; z-index: 10; background: #f8fafc; padding: 12px; border-bottom: 2px solid #e2e8f0; font-size: 13px; cursor: pointer; white-space: nowrap; }
-        td { padding: 12px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; font-size: 14px; }
-        .col-hidden { display: none !important; }
-        #authOverlay { position: fixed; inset: 0; background: #0f172a; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
-        #editModal { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
-    </style>
-</head>
-<body class="bg-slate-100 flex h-screen overflow-hidden text-slate-800">
-
-    <div id="authOverlay">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 mb-4"></div>
-        <p class="font-bold tracking-widest">🔒 安全驗證中，請稍候...</p>
-    </div>
-
-    <div id="editModal">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl w-[95%] max-w-5xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h3 class="text-2xl font-black text-blue-600">學生完整資料明細</h3>
-                <span id="displayId" class="bg-slate-100 px-4 py-1 rounded-full text-slate-500 font-mono text-sm"></span>
+<main class="flex-1 overflow-hidden flex flex-col">
+    
+    <section id="dashboardPanel" class="panel-section p-8 overflow-y-auto">
+        <h2 class="text-3xl font-black mb-6">數據概況</h2>
+        <div id="statCards" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             </div>
-            <div id="dynamicFields" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
-            <div class="flex space-x-4 mt-8 border-t pt-6">
-                <button onclick="document.getElementById('editModal').style.display='none'" class="flex-1 py-4 bg-slate-100 rounded-2xl font-bold">關閉</button>
-                <button id="saveEditBtn" class="flex-2 py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg flex-[2]">儲存變更</button>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-96 mb-10">
+            <div class="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
+                <h4 class="font-bold mb-4">報到比例</h4>
+                <div class="flex-1"><canvas id="anaPieChart"></canvas></div>
+            </div>
+            <div class="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
+                <h4 class="font-bold mb-4">各班報到人數</h4>
+                <div class="flex-1"><canvas id="anaBarChart"></canvas></div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col shadow-2xl shrink-0">
-        <div class="p-6 border-b border-slate-700 font-black text-xl text-center">🏫 管理系統</div>
-        <nav class="flex-1 p-4 space-y-1 text-sm">
-            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active">📊 報到統計</button>
-            <button data-target="searchPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">🔍 精確查詢</button>
-            <button data-target="managePanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">🗂️ 名冊管理</button>
-            <button data-target="langPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">🗣️ 本土語統計</button>
-            <button data-target="classPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">✏️ 編班比對</button>
-            <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">📥 資料匯入</button>
-            <div class="border-t border-slate-700 my-4 pt-4">
-                <a href="admin.html" class="block p-3 text-slate-400 hover:text-white">⚙️ 管理白名單</a>
-                <button onclick="logout()" class="w-full text-left p-3 text-red-400 hover:bg-red-900/30">🚪 安全登出</button>
-            </div>
-        </nav>
-    </aside>
+    <section id="langPanel" class="panel-section hidden p-8 overflow-y-auto">
+        <h2 class="text-3xl font-black mb-6">🗣️ 本土語言統計</h2>
+        <div id="langList" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"></div>
+        <div id="langGroups" class="space-y-6 bg-white p-6 rounded-3xl border shadow-sm">
+            <h4 class="font-bold border-b pb-2 mb-4">選修名單彙整</h4>
+            <div id="langGroupContent"></div>
+        </div>
+    </section>
 
-    <main class="flex-1 overflow-hidden flex flex-col">
-        <section id="dashboardPanel" class="panel-section p-8 overflow-y-auto">
-            <h2 class="text-3xl font-black mb-6">數據概況</h2>
-            <div id="statCards" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"></div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-80">
-                <div class="bg-white p-6 rounded-3xl border shadow-sm"><canvas id="anaPieChart"></canvas></div>
-                <div class="bg-white p-6 rounded-3xl border shadow-sm"><canvas id="anaBarChart"></canvas></div>
-            </div>
-        </section>
-
-        <section id="searchPanel" class="panel-section hidden p-8 flex flex-col items-center">
-            <div class="w-full max-w-xl bg-white p-10 rounded-[3rem] shadow-xl border mt-10">
-                <h3 class="text-2xl font-black text-center mb-6">🔍 學生單一查詢</h3>
-                <div class="flex space-x-2 mb-8">
-                    <input type="text" id="qInput" placeholder="輸入姓名或身分證..." class="flex-1 border-2 p-4 rounded-2xl outline-none focus:border-blue-500">
-                    <button id="qBtn" class="bg-blue-600 text-white px-8 rounded-2xl font-bold">搜尋</button>
+    <section id="classPanel" class="panel-section hidden p-8 overflow-y-auto">
+        <div class="max-w-4xl mx-auto bg-white p-8 rounded-[3rem] shadow-xl border">
+            <h2 class="text-2xl font-black mb-6 text-blue-600">✏️ 自動編班比對</h2>
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <input type="text" id="targetClass" placeholder="目標班級 (如 101)" class="w-full border-2 p-4 rounded-2xl mb-4">
+                    <textarea id="rawList" rows="10" class="w-full border-2 p-4 rounded-2xl font-mono text-sm" placeholder="格式：01 姓名"></textarea>
+                    <button id="runMatchBtn" class="w-full mt-4 bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg">執行比對並寫入</button>
                 </div>
-                <div id="qResult" class="hidden p-6 bg-slate-50 rounded-2xl border-2 border-dashed"></div>
-            </div>
-        </section>
-
-        <section id="managePanel" class="panel-section hidden p-8 h-full flex flex-col">
-            <div class="bg-white p-6 rounded-3xl shadow-sm border mb-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-black text-slate-700">學生名冊總表</h2>
-                    <input type="text" id="listFilter" placeholder="過濾名單..." class="border px-4 py-2 rounded-xl text-sm">
-                </div>
-                <div id="colToggles" class="flex flex-wrap gap-2"></div>
-            </div>
-            <div class="bg-white rounded-3xl shadow-sm border flex-1 overflow-hidden">
-                <div class="table-container">
-                    <table>
-                        <thead id="tHead"></thead>
-                        <tbody id="tBody" class="divide-y cursor-pointer"></tbody>
-                    </table>
+                <div id="matchLog" class="bg-slate-900 text-green-400 p-6 rounded-2xl font-mono text-xs h-96 overflow-y-auto shadow-inner">
+                    等待操作...
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <section id="langPanel" class="panel-section hidden p-8 overflow-y-auto">
-            <h2 class="text-3xl font-black mb-6">🗣️ 本土語言統計</h2>
-            <div id="langList" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"></div>
-            <div id="langGroups" class="space-y-6"></div>
-        </section>
-
-        <section id="importPanel" class="panel-section hidden p-8 text-center">
-            <div class="max-w-md mx-auto bg-white p-10 rounded-[3rem] shadow-lg border">
-                <h3 class="font-bold mb-4 text-xl text-slate-600">Excel 大宗匯入</h3>
-                <input type="file" id="excelFile" class="mb-4 text-sm w-full border p-2 rounded">
-                <button id="importBtn" class="w-full bg-slate-800 text-white py-4 rounded-2xl font-bold">開始執行匯入</button>
-            </div>
-        </section>
     </main>
-
-    <script type="module" src="js/dashboard.js"></script>
-</body>
-</html>
