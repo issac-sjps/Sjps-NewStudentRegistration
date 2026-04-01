@@ -21,7 +21,7 @@
     <div id="editModal" class="modal flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
             <h3 class="text-xl font-bold mb-4 border-b pb-2">修改學生資料</h3>
-            <div class="space-y-4" id="editForm">
+            <div class="space-y-4">
                 <input type="hidden" id="editId">
                 <div><label class="text-xs text-gray-500">姓名</label><input type="text" id="editName" class="w-full border p-2 rounded"></div>
                 <div>
@@ -41,7 +41,7 @@
                 <div><label class="text-xs text-gray-500">聯絡電話</label><input type="text" id="editPhone" class="w-full border p-2 rounded"></div>
             </div>
             <div class="flex space-x-3 mt-6">
-                <button onclick="closeModal()" class="flex-1 py-2 bg-gray-200 rounded-xl">取消</button>
+                <button id="closeModalBtn" class="flex-1 py-2 bg-gray-200 rounded-xl">取消</button>
                 <button id="saveEditBtn" class="flex-1 py-2 bg-blue-600 text-white rounded-xl font-bold">儲存修改</button>
             </div>
         </div>
@@ -49,11 +49,11 @@
 
     <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col shadow-2xl">
         <div class="p-6 border-b border-slate-700 font-black text-xl flex items-center justify-between">
-            <span>註冊組後台</span>
+            <span>註冊組管理</span>
             <div id="connStatusLamp" class="w-3 h-3 rounded-full bg-slate-500"></div>
         </div>
         <nav class="flex-1 p-4 space-y-2">
-            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active">📊 數據統計中心</button>
+            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active">📊 統計中心</button>
             <button data-target="managePanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">🗂️ 學生資料管理</button>
             <button data-target="classPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">✏️ 手動編班比對</button>
             <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">📥 匯入/重置</button>
@@ -61,48 +61,33 @@
     </aside>
 
     <main class="flex-1 flex flex-col overflow-hidden">
-        
         <section id="dashboardPanel" class="panel-section block h-full p-8 overflow-y-auto">
-            <h2 class="text-3xl font-black mb-6">統計概況</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-black">數據統計</h2>
+                <button id="refreshDataBtn" class="bg-white px-4 py-2 rounded shadow text-sm">🔄 刷新</button>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-500">
-                    <p class="text-gray-400 text-xs font-bold">總人數</p>
-                    <p id="statTotal" class="text-3xl font-black">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-green-500">
-                    <p class="text-gray-400 text-xs font-bold">已報到</p>
-                    <p id="statDone" class="text-3xl font-black text-green-600">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-red-500">
-                    <p class="text-gray-400 text-xs font-bold">未報到</p>
-                    <p id="statPending" class="text-3xl font-black text-red-600">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-yellow-500">
-                    <p class="text-gray-400 text-xs font-bold">出國/私校</p>
-                    <p id="statOther" class="text-3xl font-black text-yellow-600">0</p>
-                </div>
+                <div class="bg-white p-6 rounded-2xl border-b-4 border-blue-500 shadow-sm"><p class="text-xs text-gray-400">總人數</p><p id="statTotal" class="text-3xl font-black">0</p></div>
+                <div class="bg-white p-6 rounded-2xl border-b-4 border-green-500 shadow-sm"><p class="text-xs text-gray-400">已報到</p><p id="statDone" class="text-3xl font-black text-green-600">0</p></div>
+                <div class="bg-white p-6 rounded-2xl border-b-4 border-red-500 shadow-sm"><p class="text-xs text-gray-400">未報到</p><p id="statPending" class="text-3xl font-black text-red-600">0</p></div>
+                <div class="bg-white p-6 rounded-2xl border-b-4 border-yellow-500 shadow-sm"><p class="text-xs text-gray-400">出國/私校</p><p id="statOther" class="text-3xl font-black text-yellow-600">0</p></div>
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-2xl border shadow-sm h-80"><canvas id="anaPieChart"></canvas></div>
-                <div class="bg-white p-6 rounded-2xl border shadow-sm h-80"><canvas id="anaBarChart"></canvas></div>
+                <div class="bg-white p-6 rounded-2xl border h-80"><canvas id="anaPieChart"></canvas></div>
+                <div class="bg-white p-6 rounded-2xl border h-80"><canvas id="anaBarChart"></canvas></div>
             </div>
         </section>
 
         <section id="managePanel" class="panel-section hidden h-full p-8 flex flex-col">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-black">學生名單 (點擊橫列可修改)</h2>
-                <div class="flex space-x-2">
-                    <input type="text" id="searchInTable" placeholder="搜尋姓名..." class="border rounded-lg px-4 py-2 text-sm">
-                    <button id="exportBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">匯出 Excel</button>
-                </div>
+                <h2 class="text-2xl font-black">學生名單 (點擊修改)</h2>
+                <button id="exportBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm">匯出 Excel</button>
             </div>
             <div class="bg-white flex-1 rounded-2xl shadow-sm border overflow-hidden">
                 <div class="table-scroll">
                     <table class="w-full text-left text-sm">
                         <thead class="bg-slate-50 border-b">
-                            <tr>
-                                <th class="p-4">狀態</th><th class="p-4">班級-座號</th><th class="p-4">姓名</th><th class="p-4">聯絡電話</th><th class="p-4">操作</th>
-                            </tr>
+                            <tr><th class="p-4">狀態</th><th class="p-4">班級-座號</th><th class="p-4">姓名</th><th class="p-4">聯絡電話</th><th class="p-4">操作</th></tr>
                         </thead>
                         <tbody id="studentTableBody" class="divide-y cursor-pointer"></tbody>
                     </table>
@@ -112,14 +97,14 @@
 
         <section id="classPanel" class="panel-section hidden p-10 h-full overflow-y-auto">
             <div class="max-w-4xl mx-auto bg-white p-8 rounded-3xl shadow-xl border">
-                <h2 class="text-xl font-bold mb-4">✏️ 貼上名單比對編班</h2>
+                <h2 class="text-xl font-bold mb-4">✏️ 貼上名單編班</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <input type="text" id="inputClassName" placeholder="輸入班級 (如 101)" class="w-full border p-3 rounded-xl mb-4">
-                        <textarea id="rawNameList" rows="10" class="w-full border p-3 rounded-xl font-mono text-sm" placeholder="01 黃于恩&#10;02 梁宇侑"></textarea>
-                        <button id="matchNamesBtn" class="w-full mt-4 bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg">開始比對</button>
+                        <input type="text" id="inputClassName" placeholder="輸入班級" class="w-full border p-3 rounded-xl mb-4">
+                        <textarea id="rawNameList" rows="10" class="w-full border p-3 rounded-xl font-mono text-sm" placeholder="01 黃于恩"></textarea>
+                        <button id="matchNamesBtn" class="w-full mt-4 bg-blue-600 text-white py-4 rounded-xl font-bold">開始比對</button>
                     </div>
-                    <div id="matchLog" class="bg-slate-50 p-4 rounded-xl border text-xs overflow-y-auto h-80 space-y-1"></div>
+                    <div id="matchLog" class="bg-slate-50 p-4 rounded-xl border text-xs h-80 overflow-y-auto"></div>
                 </div>
             </div>
         </section>
@@ -129,16 +114,15 @@
                 <div class="bg-white p-8 rounded-2xl shadow border text-center">
                     <h3 class="font-bold mb-4">匯入基礎 Excel</h3>
                     <input type="file" id="excelFile" class="mb-4 text-sm w-full">
-                    <button id="importBtn" class="w-full bg-slate-800 text-white py-3 rounded-xl">執行匯入</button>
+                    <button id="importBtn" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">執行匯入</button>
                 </div>
                 <div class="bg-red-50 p-8 rounded-2xl border border-red-200 text-center">
                     <h3 class="text-red-600 font-bold mb-2">清空資料庫</h3>
                     <input type="text" id="resetInput" placeholder="輸入「確認清空」" class="w-full border p-2 rounded mb-3 text-center">
-                    <button id="resetBtn" class="w-full bg-red-600 text-white py-3 rounded-xl opacity-20" disabled>確認刪除</button>
+                    <button id="resetBtn" class="w-full bg-red-600 text-white py-3 rounded-xl font-bold opacity-20" disabled>確認刪除</button>
                 </div>
             </div>
         </section>
-
     </main>
 
     <script type="module" src="js/dashboard.js"></script>
