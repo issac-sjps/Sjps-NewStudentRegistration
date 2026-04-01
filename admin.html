@@ -1,76 +1,112 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <title>管理員認證 - 新莊國小</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理員設定 - 新莊國小</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-white h-screen flex justify-center items-center p-4">
-    <div id="loginSection" class="bg-slate-800 p-10 rounded-3xl shadow-2xl text-center border border-slate-700 w-full max-w-md">
-        <h2 class="text-3xl font-black mb-6 text-blue-400">🛡️ 註冊組管理登入</h2>
-        <button id="loginBtn" class="bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold flex items-center justify-center space-x-2 hover:bg-slate-200 transition w-full">
-            <img src="https://www.google.com/favicon.ico" class="w-5 h-5">
-            <span>使用 Google 帳號登入</span>
-        </button>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-4">
+
+  <!-- 登入畫面 -->
+  <div id="loginBox" class="bg-slate-800 rounded-3xl p-10 w-full max-w-md border border-slate-700 shadow-2xl text-center">
+    <div class="text-5xl mb-4">🏫</div>
+    <h1 class="text-2xl font-black text-white mb-2">新莊國小</h1>
+    <p class="text-slate-400 text-sm mb-8">新生報到管理系統 — 管理員入口</p>
+    <button id="loginBtn"
+      class="w-full bg-white text-slate-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-slate-100 transition shadow-lg">
+      <img src="https://www.google.com/favicon.ico" class="w-5 h-5">
+      使用 Google 帳號登入
+    </button>
+    <p class="text-slate-500 text-xs mt-6">僅授權帳號可登入後台</p>
+  </div>
+
+  <!-- 白名單管理畫面 -->
+  <div id="adminBox" class="hidden bg-slate-800 rounded-3xl p-8 w-full max-w-lg border border-slate-700 shadow-2xl text-white">
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h2 class="text-xl font-black text-blue-400">⚙️ 管理員白名單</h2>
+        <p id="currentUser" class="text-xs text-slate-400 mt-1"></p>
+      </div>
+      <button id="logoutBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-xl transition">登出</button>
     </div>
 
-    <div id="adminSection" class="hidden bg-slate-800 p-8 rounded-3xl shadow-2xl w-full max-w-lg border border-slate-700">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold text-blue-400">⚙️ 白名單設定</h2>
-            <button onclick="signOutAuth()" class="text-xs bg-slate-700 px-3 py-1 rounded-lg hover:bg-red-600">登出</button>
-        </div>
-        <div class="mb-6">
-            <label class="block text-sm mb-2 opacity-70">新增授權 Email (如: issac@sjps.kh.edu.tw)</label>
-            <div class="flex space-x-2">
-                <input type="email" id="newAdminEmail" class="flex-1 p-3 rounded-xl bg-slate-700 border-none outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="addAdminBtn" class="bg-blue-600 px-6 rounded-xl font-bold">加入</button>
-            </div>
-        </div>
-        <div class="bg-slate-900 rounded-2xl p-4 h-64 overflow-y-auto border border-slate-700">
-            <ul id="adminList" class="space-y-2"></ul>
-        </div>
-        <a href="dashboard.html" class="block mt-6 bg-green-600 text-center py-4 rounded-2xl font-black hover:bg-green-500 transition shadow-lg">進入統計後台 ➜</a>
+    <div class="mb-6">
+      <label class="block text-sm font-bold text-slate-300 mb-2">新增授權 Email</label>
+      <div class="flex gap-2">
+        <input type="email" id="newEmail" placeholder="teacher@sjps.kh.edu.tw"
+          class="flex-1 bg-slate-700 border border-slate-600 text-white p-3 rounded-xl outline-none focus:border-blue-500 placeholder-slate-500">
+        <button id="addBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 rounded-xl font-bold transition">加入</button>
+      </div>
     </div>
 
-    <script type="module">
-        import { db, auth } from './js/firebase-config.js';
-        import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    <div class="bg-slate-900 rounded-2xl p-4 min-h-[200px] max-h-64 overflow-y-auto border border-slate-700">
+      <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-3">已授權名單</p>
+      <ul id="adminList" class="space-y-2">
+        <li class="text-slate-500 text-sm text-center py-4">載入中...</li>
+      </ul>
+    </div>
 
-        document.getElementById('loginBtn').onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
-        window.signOutAuth = () => signOut(auth);
+    <a href="dashboard.html"
+      class="block mt-6 bg-green-600 hover:bg-green-500 text-white text-center py-4 rounded-2xl font-black text-lg transition shadow-lg">
+      進入管理後台 →
+    </a>
+  </div>
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('adminSection').classList.remove('hidden');
-                loadAdminList();
-            } else {
-                document.getElementById('loginSection').classList.remove('hidden');
-                document.getElementById('adminSection').classList.add('hidden');
-            }
+  <script type="module">
+    import { auth, db } from './js/firebase-config.js';
+    import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    const loginBox = document.getElementById('loginBox');
+    const adminBox = document.getElementById('adminBox');
+
+    document.getElementById('loginBtn').onclick = () =>
+      signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert('登入失敗：' + e.message));
+
+    document.getElementById('logoutBtn').onclick = () => signOut(auth);
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        loginBox.classList.add('hidden');
+        adminBox.classList.remove('hidden');
+        document.getElementById('currentUser').textContent = '登入帳號：' + user.email;
+        loadAdmins();
+      } else {
+        loginBox.classList.remove('hidden');
+        adminBox.classList.add('hidden');
+      }
+    });
+
+    function loadAdmins() {
+      onSnapshot(collection(db, 'admins'), snap => {
+        const list = document.getElementById('adminList');
+        list.innerHTML = '';
+        snap.forEach(d => {
+          const li = document.createElement('li');
+          li.className = 'flex justify-between items-center bg-slate-800 px-4 py-3 rounded-xl border border-slate-700';
+          const isSuperAdmin = d.id === 'issac@sjps.kh.edu.tw';
+          li.innerHTML = `
+            <span class="text-sm">${d.id}
+              ${isSuperAdmin ? '<span class="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">Super Admin</span>' : ''}
+            </span>
+            ${!isSuperAdmin ? `<button onclick="removeAdmin('${d.id}')" class="text-red-400 hover:text-red-300 text-xs font-bold">移除</button>` : ''}
+          `;
+          list.appendChild(li);
         });
+      });
+    }
 
-        function loadAdminList() {
-            onSnapshot(collection(db, "admins"), (snap) => {
-                const list = document.getElementById('adminList');
-                list.innerHTML = '';
-                snap.forEach(d => {
-                    list.innerHTML += `<li class="flex justify-between items-center p-3 bg-slate-800 rounded-xl text-sm border border-slate-700">
-                        <span>${d.id}</span>
-                        <button onclick="removeAdmin('${d.id}')" class="text-red-400 font-bold">移除</button>
-                    </li>`;
-                });
-            });
-        }
+    document.getElementById('addBtn').onclick = async () => {
+      const email = document.getElementById('newEmail').value.trim().toLowerCase();
+      if (!email) return;
+      await setDoc(doc(db, 'admins', email), { addedAt: new Date().toISOString() });
+      document.getElementById('newEmail').value = '';
+    };
 
-        document.getElementById('addAdminBtn').onclick = async () => {
-            const email = document.getElementById('newAdminEmail').value.trim();
-            if(email) await setDoc(doc(db, "admins", email.toLowerCase()), { role: "admin" });
-            document.getElementById('newAdminEmail').value = '';
-        };
-
-        window.removeAdmin = (id) => confirm(`確定移除 ${id}?`) && deleteDoc(doc(db, "admins", id));
-    </script>
+    window.removeAdmin = async email => {
+      if (confirm(`確定移除 ${email}？`)) await deleteDoc(doc(db, 'admins', email));
+    };
+  </script>
 </body>
 </html>
