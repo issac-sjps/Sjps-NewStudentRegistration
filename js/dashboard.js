@@ -5,29 +5,19 @@ let allData = [];
 let sortConfig = { key: '姓名', direction: 'asc' };
 let charts = { pie: null, bar: null };
 
-// --- 重要：修正 Uncaught ReferenceError ---
-// 將排序函數掛載到全域 window 物件，HTML onclick 才能抓到
-window.toggleSort = (key) => {
-    if (sortConfig.key === key) {
-        sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
-    } else {
-        sortConfig.key = key;
-        sortConfig.direction = 'asc';
-    }
-    applySortAndRender();
-};
-
+// --- 初始化載入 ---
 async function loadData() {
     try {
         const qs = await getDocs(collection(db, "students"));
         allData = qs.docs.map(d => d.data());
         applySortAndRender();
-        updateSummary(); // 更新統計數據與圖表
+        updateSummary();
     } catch (e) {
         console.error("載入失敗:", e);
     }
 }
 
+// --- 排序與渲染 (核心改動) ---
 function applySortAndRender() {
     allData.sort((a, b) => {
         let valA = a[sortConfig.key] || "";
@@ -67,15 +57,30 @@ function renderTable() {
             </tr>`;
     }).join('');
 
+    // 為每行綁定點擊編輯事件
     document.querySelectorAll('.student-row').forEach(r => {
         r.addEventListener('click', () => openEditModal(r.dataset.id));
     });
 }
 
-// --- 修正：數據統計功能 ---
+// --- 綁定表頭點擊排序 (取代 onclick) ---
+document.querySelectorAll('.sort-btn').forEach(th => {
+    th.addEventListener('click', () => {
+        const key = th.dataset.sort;
+        if (sortConfig.key === key) {
+            sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortConfig.key = key;
+            sortConfig.direction = 'asc';
+        }
+        applySortAndRender();
+    });
+});
+
+// --- 數據統計概況 ---
 function updateSummary() {
     let stats = { "線上報到": 0, "未報到": 0, "其它": 0 };
-    let classDist = {}; // 各班人數
+    let classDist = {};
 
     allData.forEach(s => {
         const st = s["報到狀態"] || "未報到";
@@ -87,23 +92,19 @@ function updateSummary() {
         classDist[cls] = (classDist[cls] || 0) + 1;
     });
 
-    // 更新卡片數字
     document.getElementById('statTotal').innerText = allData.length;
     document.getElementById('statDone').innerText = stats["線上報到"];
     document.getElementById('statPending').innerText = stats["未報到"];
     document.getElementById('statOther').innerText = stats["其它"];
 
-    // 更新圖表
     renderCharts(stats, classDist);
 }
 
 function renderCharts(stats, classDist) {
     const pieCtx = document.getElementById('anaPieChart')?.getContext('2d');
     const barCtx = document.getElementById('anaBarChart')?.getContext('2d');
-
     if (charts.pie) charts.pie.destroy();
     if (charts.bar) charts.bar.destroy();
-
     if (pieCtx) {
         charts.pie = new Chart(pieCtx, {
             type: 'doughnut',
@@ -114,7 +115,6 @@ function renderCharts(stats, classDist) {
             options: { maintainAspectRatio: false }
         });
     }
-
     if (barCtx) {
         charts.bar = new Chart(barCtx, {
             type: 'bar',
@@ -149,7 +149,7 @@ function openEditModal(id) {
     document.getElementById('editModal').style.display = 'flex';
 }
 
-// 事件綁定
+// --- 按鈕事件綁定 ---
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const id = document.getElementById('displayId').innerText;
     const data = {};
@@ -159,7 +159,9 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     loadData();
 });
 
-document.getElementById('closeModalBtn').onclick = () => document.getElementById('editModal').style.display = 'none';
+document.getElementById('closeModalBtn').addEventListener('click', () => {
+    document.getElementById('editModal').style.display = 'none';
+});
 
 document.querySelectorAll('.menu-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -170,7 +172,6 @@ document.querySelectorAll('.menu-btn').forEach(btn => {
     });
 });
 
-// 匯入與測試功能
 document.getElementById('createTestStudentBtn')?.addEventListener('click', async () => {
     const tid = "T123456789";
     await setDoc(doc(db, "students", tid), { "姓名": "測試生", "身份證號": tid, "出生年月日": "2017-01-01", "報到狀態": "未報到" });
@@ -195,5 +196,19 @@ document.getElementById('importBtn')?.addEventListener('click', async () => {
     reader.readAsArrayBuffer(file);
 });
 
-// 初始化
+// 重置功能
+document.getElementById('resetInput')?.addEventListener('input', e => {
+    const btn = document.getElementById('resetBtn');
+    btn.disabled = e.target.value !== '確認清空';
+    btn.style.opacity = btn.disabled ? '0.2' : '1';
+});
+
+document.getElementById('resetBtn')?.addEventListener('click', async () => {
+    if(!confirm("確定要刪除所有學生嗎？")) return;
+    const qs = await getDocs(collection(db, "students"));
+    for (let d of qs.docs) await deleteDoc(doc(db, "students", d.id));
+    alert("已清空所有資料");
+    loadData();
+});
+
 loadData();
