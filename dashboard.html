@@ -1,44 +1,427 @@
-<main class="flex-1 overflow-hidden flex flex-col">
-    
-    <section id="dashboardPanel" class="panel-section p-8 overflow-y-auto">
-        <h2 class="text-3xl font-black mb-6">數據概況</h2>
-        <div id="statCards" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新生報到管理後台 - 新莊國小</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar-active { background: #334155; border-left: 4px solid #60a5fa; font-weight: bold; }
+        .panel-section { display: none; height: 100%; overflow-y: auto; padding: 2rem; }
+        .panel-active { display: block !important; }
+        .table-container { overflow: auto; max-height: calc(100vh - 350px); border-radius: 1rem; }
+        table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+        th { position: sticky; top: 0; z-index: 20; background: #f8fafc; padding: 1rem; border-bottom: 2px solid #e2e8f0; text-align: left; white-space: nowrap; cursor: pointer; font-size: 13px; }
+        td { padding: 0.75rem 1rem; border-bottom: 1px solid #f1f5f9; white-space: nowrap; font-size: 14px; }
+        .col-hidden { display: none !important; }
+        #authOverlay { position: fixed; inset: 0; background: #0f172a; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+    </style>
+</head>
+<body class="bg-slate-100 flex h-screen overflow-hidden text-slate-800">
+
+    <div id="authOverlay">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-blue-500 mb-4"></div>
+        <p class="font-bold tracking-widest text-lg">🔒 系統安全驗證中...</p>
+    </div>
+
+    <div id="editModal" class="hidden fixed inset-0 z-[1000] bg-black/60 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-[2rem] shadow-2xl w-[95%] max-w-5xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h3 class="text-2xl font-black text-blue-600">學生完整資料明細</h3>
+                <span id="displayId" class="bg-slate-100 px-4 py-1 rounded-full text-slate-500 font-mono text-sm"></span>
             </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-96 mb-10">
-            <div class="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
-                <h4 class="font-bold mb-4">報到比例</h4>
-                <div class="flex-1"><canvas id="anaPieChart"></canvas></div>
-            </div>
-            <div class="bg-white p-6 rounded-3xl border shadow-sm flex flex-col">
-                <h4 class="font-bold mb-4">各班報到人數</h4>
-                <div class="flex-1"><canvas id="anaBarChart"></canvas></div>
+            <div id="dynamicFields" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+            <div class="flex space-x-4 mt-8 border-t pt-6">
+                <button onclick="closeEditModal()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-bold">取消</button>
+                <button id="saveEditBtn" class="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg hover:bg-blue-700">儲存變更</button>
             </div>
         </div>
-    </section>
+    </div>
 
-    <section id="langPanel" class="panel-section hidden p-8 overflow-y-auto">
-        <h2 class="text-3xl font-black mb-6">🗣️ 本土語言統計</h2>
-        <div id="langList" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"></div>
-        <div id="langGroups" class="space-y-6 bg-white p-6 rounded-3xl border shadow-sm">
-            <h4 class="font-bold border-b pb-2 mb-4">選修名單彙整</h4>
-            <div id="langGroupContent"></div>
-        </div>
-    </section>
+    <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col shadow-2xl shrink-0">
+        <div class="p-6 border-b border-slate-700 font-black text-xl text-center tracking-tighter">🏫 新莊國小報到系統</div>
+        <nav class="flex-1 p-4 space-y-1 text-sm mt-4">
+            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active">📊 報到數據統計</button>
+            <button data-target="searchPanel" class="menu-btn w-full text-left p-3 rounded">🔍 學生快速查詢</button>
+            <button data-target="managePanel" class="menu-btn w-full text-left p-3 rounded">🗂️ 學生名冊管理</button>
+            <button data-target="langPanel" class="menu-btn w-full text-left p-3 rounded">🗣️ 本土語言統計</button>
+            <button data-target="classPanel" class="menu-btn w-full text-left p-3 rounded">✏️ 編班自動比對</button>
+            <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded">📥 數據大宗匯入</button>
+            <div class="border-t border-slate-700 my-6 pt-4 space-y-2">
+                <a href="admin.html" class="block p-3 text-slate-400 hover:text-white">⚙️ 管理白名單</a>
+                <button onclick="logout()" class="w-full text-left p-3 text-red-400 hover:bg-red-900/30 rounded">🚪 安全登出系統</button>
+            </div>
+        </nav>
+    </aside>
 
-    <section id="classPanel" class="panel-section hidden p-8 overflow-y-auto">
-        <div class="max-w-4xl mx-auto bg-white p-8 rounded-[3rem] shadow-xl border">
-            <h2 class="text-2xl font-black mb-6 text-blue-600">✏️ 自動編班比對</h2>
-            <div class="grid grid-cols-2 gap-6">
-                <div>
-                    <input type="text" id="targetClass" placeholder="目標班級 (如 101)" class="w-full border-2 p-4 rounded-2xl mb-4">
-                    <textarea id="rawList" rows="10" class="w-full border-2 p-4 rounded-2xl font-mono text-sm" placeholder="格式：01 姓名"></textarea>
-                    <button id="runMatchBtn" class="w-full mt-4 bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg">執行比對並寫入</button>
+    <main class="flex-1 overflow-hidden relative">
+        
+        <section id="dashboardPanel" class="panel-section panel-active">
+            <h2 class="text-3xl font-black mb-8">數據概況</h2>
+            <div id="statCards" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
                 </div>
-                <div id="matchLog" class="bg-slate-900 text-green-400 p-6 rounded-2xl font-mono text-xs h-96 overflow-y-auto shadow-inner">
-                    等待操作...
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[450px]">
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border flex flex-col">
+                    <h4 class="font-black text-slate-500 mb-4 flex items-center">🔵 報到比例</h4>
+                    <div class="flex-1 relative"><canvas id="anaPieChart"></canvas></div>
+                </div>
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border flex flex-col">
+                    <h4 class="font-black text-slate-500 mb-4 flex items-center">🟢 各班報到進度</h4>
+                    <div class="flex-1 relative"><canvas id="anaBarChart"></canvas></div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
+        <section id="searchPanel" class="panel-section">
+            <div class="max-w-2xl mx-auto bg-white p-12 rounded-[3rem] shadow-xl border mt-10 text-center">
+                <h3 class="text-3xl font-black mb-2">🔍 學生快速查詢</h3>
+                <p class="text-slate-400 mb-8">請輸入學生 姓名 或 身分證字號</p>
+                <div class="flex space-x-2 mb-10">
+                    <input type="text" id="qInput" placeholder="例如：黃小明" class="flex-1 border-2 p-5 rounded-2xl outline-none focus:border-blue-500 text-lg shadow-inner">
+                    <button id="qBtn" class="bg-blue-600 text-white px-10 rounded-2xl font-black text-lg hover:bg-blue-700 transition shadow-lg">搜尋</button>
+                </div>
+                <div id="qResult" class="hidden p-8 bg-blue-50 rounded-3xl border-2 border-blue-200 text-left relative">
+                    </div>
+            </div>
+        </section>
+
+        <section id="managePanel" class="panel-section">
+            <div class="bg-white p-6 rounded-[2rem] shadow-sm border mb-6">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <h2 class="text-2xl font-black">學生名冊總表</h2>
+                    <input type="text" id="listFilter" placeholder="過濾關鍵字..." class="border-2 px-4 py-2 rounded-xl text-sm outline-none focus:border-blue-500">
+                </div>
+                <div id="colToggles" class="flex flex-wrap gap-2 p-2"></div>
+            </div>
+            <div class="bg-white rounded-[2rem] shadow-sm border overflow-hidden">
+                <div class="table-container">
+                    <table class="w-full">
+                        <thead id="tHead"></thead>
+                        <tbody id="tBody" class="divide-y cursor-pointer"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="langPanel" class="panel-section">
+            <h2 class="text-3xl font-black mb-8 text-slate-700">🗣️ 本土語言選修統計</h2>
+            <div id="langCards" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10"></div>
+            <div class="bg-white p-8 rounded-[2rem] shadow-sm border">
+                <h4 class="font-black text-xl mb-6 border-b pb-4">各類別名單彙整</h4>
+                <div id="langGroups" class="space-y-8"></div>
+            </div>
+        </section>
+
+        <section id="classPanel" class="panel-section">
+            <div class="max-w-4xl mx-auto bg-white p-10 rounded-[3rem] shadow-2xl border">
+                <h2 class="text-2xl font-black mb-2 text-blue-600">✏️ 自動編班比對系統</h2>
+                <p class="text-slate-400 mb-8">將正式編班名冊貼上，系統將自動比對身分並填入班級座號</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block text-sm font-bold mb-2">目標班級</label>
+                        <input type="text" id="targetClass" placeholder="例如：101" class="w-full border-2 p-4 rounded-2xl mb-4 outline-none focus:border-blue-500">
+                        <label class="block text-sm font-bold mb-2">名單貼上 (格式: 01 姓名)</label>
+                        <textarea id="rawList" rows="12" class="w-full border-2 p-4 rounded-2xl font-mono text-sm shadow-inner" placeholder="01 王大同&#10;02 李小美"></textarea>
+                        <button id="runMatchBtn" class="w-full mt-6 bg-blue-600 text-white py-5 rounded-2xl font-black text-xl shadow-lg hover:bg-blue-700 transition">開始比對寫入</button>
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="block text-sm font-bold mb-2">處理日誌</label>
+                        <div id="matchLog" class="flex-1 bg-slate-900 text-green-400 p-6 rounded-2xl font-mono text-xs overflow-y-auto shadow-2xl">
+                            > 等待指令...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="importPanel" class="panel-section">
+            <div class="max-w-md mx-auto bg-white p-12 rounded-[3rem] shadow-xl border text-center mt-10">
+                <h3 class="text-2xl font-black mb-6">📥 數據大宗匯入</h3>
+                <p class="text-sm text-slate-400 mb-8">請上傳包含新生資料的 Excel 檔案</p>
+                <input type="file" id="excelFile" class="mb-6 block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-2xl file:border-0 file:text-sm file:font-black file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <button id="importBtn" class="w-full bg-slate-800 text-white py-5 rounded-2xl font-black text-lg hover:bg-black transition">執行 Excel 匯入</button>
+            </div>
+        </section>
     </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+
+        // --- 1. 配置 (請換成您的正確資訊) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSy...", 
+            authDomain: "sjps-signup.firebaseapp.com",
+            projectId: "sjps-signup",
+            storageBucket: "sjps-signup.appspot.com",
+            messagingSenderId: "...",
+            appId: "..."
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let allData = [];
+        let columns = [];
+        let hiddenCols = new Set();
+        let sortConfig = { key: 'std_name', direction: 'asc' };
+        let charts = {};
+
+        // --- 2. 安全驗證 ---
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = "admin.html"; return; }
+            try {
+                const adminSnap = await getDoc(doc(db, "admins", user.email.toLowerCase()));
+                if (!adminSnap.exists()) {
+                    alert("您不在白名單內！");
+                    await signOut(auth);
+                    window.location.href = "admin.html";
+                    return;
+                }
+                document.getElementById('authOverlay').style.display = 'none';
+                initData();
+            } catch (e) { console.error(e); }
+        });
+
+        // --- 3. 資料初始化 ---
+        async function initData() {
+            const qs = await getDocs(collection(db, "students"));
+            allData = qs.docs.map(d => {
+                const r = d.data();
+                // 標準化 ID
+                r.std_id = r.身份證號 || r.身分證號 || r.身分證字號 || r.身份證字號 || d.id;
+                r.std_name = r.姓名 || "未命名";
+                r.std_class = r.班級 || "";
+                r.std_no = r.座號 || "";
+                r.std_status = r.報到狀態 || "未報到";
+                r.std_lang = r.本土語言名稱 || r.本土語 || "未選修";
+                return r;
+            });
+
+            // 抓取所有欄位
+            const keys = new Set();
+            allData.forEach(s => Object.keys(s).forEach(k => {
+                if(!['std_id','std_name','std_class','std_no','std_status','std_lang'].includes(k)) keys.add(k);
+            }));
+            columns = ["std_status", "std_class", "std_no", "std_name", "std_lang", ...Array.from(keys)];
+            
+            renderAll();
+        }
+
+        function renderAll() {
+            updateSummary();
+            renderCharts();
+            renderMainTable();
+            renderToggles();
+            renderLangStats();
+        }
+
+        // --- 4. 統計功能 ---
+        function updateSummary() {
+            let online = 0;
+            allData.forEach(s => { if(s.std_status === '線上報到') online++; });
+            document.getElementById('statCards').innerHTML = `
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border-b-8 border-blue-500 text-center">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">學生總數</p>
+                    <p class="text-4xl font-black">${allData.length}</p>
+                </div>
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border-b-8 border-green-500 text-center">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">完成報到</p>
+                    <p class="text-4xl font-black text-green-600">${online}</p>
+                </div>
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border-b-8 border-red-500 text-center">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">尚未報到</p>
+                    <p class="text-4xl font-black text-red-600">${allData.length - online}</p>
+                </div>
+                <div class="bg-white p-8 rounded-[2rem] shadow-sm border-b-8 border-yellow-500 text-center">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">報到率</p>
+                    <p class="text-4xl font-black text-yellow-600">${Math.round((online/allData.length)*100)}%</p>
+                </div>
+            `;
+        }
+
+        function renderCharts() {
+            // 圓餅圖
+            const sCount = { '線上報到': 0, '未報到': 0 };
+            allData.forEach(s => { sCount[s.std_status === '線上報到' ? '線上報到' : '未報到']++; });
+            const ctxPie = document.getElementById('anaPieChart');
+            if(charts.pie) charts.pie.destroy();
+            charts.pie = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: { labels: ['已報到', '未報到'], datasets: [{ data: [sCount['線上報到'], sCount['未報到']], backgroundColor: ['#22c55e', '#f1f5f9'] }] },
+                options: { maintainAspectRatio: false, cutout: '70%' }
+            });
+
+            // 長條圖 (班級)
+            const cCount = {};
+            allData.forEach(s => { if(s.std_class) cCount[s.std_class] = (cCount[s.std_class] || 0) + 1; });
+            const ctxBar = document.getElementById('anaBarChart');
+            if(charts.bar) charts.bar.destroy();
+            charts.bar = new Chart(ctxBar, {
+                type: 'bar',
+                data: { labels: Object.keys(cCount), datasets: [{ label: '人數', data: Object.values(cCount), backgroundColor: '#3b82f6', borderRadius: 10 }] },
+                options: { maintainAspectRatio: false }
+            });
+        }
+
+        // --- 5. 名冊與欄位控制 ---
+        function renderMainTable() {
+            const head = document.getElementById('tHead');
+            const body = document.getElementById('tBody');
+            
+            const trans = { std_status: '狀態', std_class: '班級', std_no: '座號', std_name: '姓名', std_lang: '語言' };
+            
+            head.innerHTML = `<tr>${columns.map(c => `<th class="${hiddenCols.has(c)?'col-hidden':''}" onclick="setSort('${c}')">${trans[c] || c}</th>`).join('')}</tr>`;
+            
+            const sorted = [...allData].sort((a,b) => {
+                let vA = a[sortConfig.key] || "";
+                let vB = b[sortConfig.key] || "";
+                return sortConfig.direction === 'asc' ? String(vA).localeCompare(vB,'zh') : String(vB).localeCompare(vA,'zh');
+            });
+
+            body.innerHTML = sorted.map(s => `
+                <tr class="hover:bg-blue-50/50 transition" onclick="openEditModal('${s.std_id}')">
+                    ${columns.map(c => {
+                        let val = s[c] || "";
+                        if(c === 'std_status') val = `<span class="px-2 py-1 rounded-lg text-[10px] font-black ${val==='線上報到'?'bg-green-100 text-green-700':'bg-slate-100'}">${val}</span>`;
+                        return `<td class="${hiddenCols.has(c)?'col-hidden':''}">${val}</td>`;
+                    }).join('')}
+                </tr>`).join('');
+        }
+
+        function renderToggles() {
+            const container = document.getElementById('colToggles');
+            const trans = { std_status: '狀態', std_class: '班級', std_no: '座號', std_name: '姓名', std_lang: '語言' };
+            container.innerHTML = columns.map(c => `
+                <button onclick="window.toggleCol('${c}')" class="px-3 py-1 rounded-full text-xs font-bold border transition ${hiddenCols.has(c)?'bg-white text-slate-300 border-slate-100':'bg-blue-50 text-blue-600 border-blue-200'}">
+                    ${hiddenCols.has(c)?'✕':'✓'} ${trans[c] || c}
+                </button>`).join('');
+        }
+
+        window.toggleCol = (c) => {
+            hiddenCols.has(c) ? hiddenCols.delete(c) : hiddenCols.add(c);
+            renderToggles(); renderMainTable();
+        };
+
+        window.setSort = (c) => {
+            sortConfig.direction = (sortConfig.key === c && sortConfig.direction === 'asc') ? 'desc' : 'asc';
+            sortConfig.key = c;
+            renderMainTable();
+        };
+
+        // --- 6. 本土語 ---
+        function renderLangStats() {
+            const lStats = {};
+            allData.forEach(s => {
+                const l = s.std_lang;
+                if(!lStats[l]) lStats[l] = [];
+                lStats[l].push(s.std_name);
+            });
+            document.getElementById('langCards').innerHTML = Object.entries(lStats).map(([name, list]) => `
+                <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                    <p class="text-xs text-slate-400 font-bold mb-1">${name}</p>
+                    <p class="text-3xl font-black text-indigo-600">${list.length} <span class="text-sm font-normal">人</span></p>
+                </div>`).join('');
+            document.getElementById('langGroups').innerHTML = Object.entries(lStats).map(([name, list]) => `
+                <div>
+                    <h5 class="font-black text-slate-700 mb-2">【${name}】共 ${list.length} 人</h5>
+                    <p class="text-sm text-slate-400 leading-relaxed">${list.join('、')}</p>
+                </div>`).join('');
+        }
+
+        // --- 7. 查詢與編輯 ---
+        document.getElementById('qBtn').onclick = () => {
+            const val = document.getElementById('qInput').value.trim();
+            const s = allData.find(x => x.std_name === val || x.std_id === val);
+            const res = document.getElementById('qResult');
+            if(s) {
+                res.classList.remove('hidden');
+                res.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="text-2xl font-black text-blue-700">${s.std_name}</h4>
+                            <p class="font-mono text-slate-400 text-sm">${s.std_id}</p>
+                        </div>
+                        <span class="bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-bold">${s.std_status}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mt-6 text-sm border-t pt-4">
+                        <p><b>班級：</b>${s.std_class || '未編'}</p><p><b>座號：</b>${s.std_no || '未編'}</p>
+                        <p><b>語言：</b>${s.std_lang}</p>
+                    </div>
+                    <button onclick="openEditModal('${s.std_id}')" class="w-full mt-8 bg-white border-2 border-blue-600 text-blue-600 py-3 rounded-2xl font-black hover:bg-blue-50 transition">詳細資料 / 修改</button>
+                `;
+            } else { alert("找不到該學生"); }
+        };
+
+        window.openEditModal = (id) => {
+            const s = allData.find(x => x.std_id === id);
+            document.getElementById('displayId').innerText = id;
+            document.getElementById('dynamicFields').innerHTML = Object.keys(s).map(k => `
+                <div class="flex flex-col space-y-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase">${k}</label>
+                    <input type="text" class="edit-input border p-3 rounded-xl bg-slate-50 text-sm focus:bg-white outline-none focus:ring-2 focus:ring-blue-500" data-key="${k}" value="${s[k] || ''}">
+                </div>`).join('');
+            document.getElementById('editModal').classList.remove('hidden');
+        };
+
+        window.closeEditModal = () => document.getElementById('editModal').classList.add('hidden');
+
+        document.getElementById('saveEditBtn').onclick = async () => {
+            const id = document.getElementById('displayId').innerText;
+            const updates = {};
+            document.querySelectorAll('.edit-input').forEach(i => updates[i.dataset.key] = i.value);
+            await updateDoc(doc(db, "students", id), updates);
+            alert("修改成功！");
+            closeEditModal();
+            initData();
+        };
+
+        // --- 8. 編班比對 ---
+        document.getElementById('runMatchBtn').onclick = async () => {
+            const cls = document.getElementById('targetClass').value.trim();
+            const raw = document.getElementById('rawList').value.trim();
+            const log = document.getElementById('matchLog');
+            if(!cls || !raw) return alert("請輸入班級與名單");
+
+            log.innerHTML = `> 正在比對 ${cls} 班名單...<br>`;
+            const lines = raw.split('\n');
+            const batch = writeBatch(db);
+            let success = 0;
+
+            for(let line of lines) {
+                const parts = line.trim().split(/\s+/);
+                if(parts.length < 2) continue;
+                const no = parts[0], name = parts[1];
+                const s = allData.find(x => x.std_name === name);
+                if(s) {
+                    batch.update(doc(db, "students", s.std_id), { "班級": cls, "座號": no });
+                    log.innerHTML += `<span class="text-blue-300">✓ ${name} -> ${cls}班 ${no}號</span><br>`;
+                    success++;
+                } else {
+                    log.innerHTML += `<span class="text-red-400">✕ 找不到學生：${name}</span><br>`;
+                }
+            }
+            await batch.commit();
+            log.innerHTML += `> 🎉 完成！成功更新 ${success} 位學生。`;
+            initData();
+        };
+
+        // --- 9. 側邊欄切換 ---
+        document.querySelectorAll('.menu-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('sidebar-active'));
+                btn.classList.add('sidebar-active');
+                document.querySelectorAll('.panel-section').forEach(p => p.classList.remove('panel-active'));
+                document.getElementById(btn.dataset.target).classList.add('panel-active');
+            };
+        });
+
+        window.logout = async () => { if(confirm("確定登出管理系統？")) { await signOut(auth); window.location.href = "admin.html"; } };
+
+    </script>
+</body>
+</html>
