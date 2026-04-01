@@ -1,102 +1,356 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新莊國小 - 新生報到系統</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
-        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新莊國小 — 新生線上報到</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 100%); }
+    .card { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); }
+    .section-title { font-weight: 900; font-size: 1rem; color: #1e40af;
+      border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 16px; }
+    input, select, textarea {
+      width: 100%; border: 2px solid #e2e8f0; border-radius: 12px;
+      padding: 10px 14px; font-size: 14px; outline: none; transition: border-color 0.2s;
+      background: #f8fafc;
+    }
+    input:focus, select:focus { border-color: #3b82f6; background: white; }
+    label { display: block; font-size: 12px; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .required::after { content: ' *'; color: #ef4444; }
+  </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body class="min-h-screen py-8 px-4">
 
-    <div id="loginStep" class="glass w-full max-w-md p-8 rounded-3xl shadow-2xl">
-        <h1 class="text-2xl font-black text-center text-slate-800 mb-8">新生報到登入</h1>
-        <div class="space-y-6">
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-2">新生身分證號</label>
-                <input type="text" id="idNumber" placeholder="例如: A123456789" class="w-full px-4 py-4 rounded-xl border-2 uppercase font-mono">
-            </div>
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-2">出生年月日</label>
-                <input type="date" id="birthday" class="w-full px-4 py-4 rounded-xl border-2">
-            </div>
-            <button id="loginBtn" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg">進入報到問卷</button>
+  <!-- Header -->
+  <div class="max-w-2xl mx-auto mb-6 text-center">
+    <h1 class="text-3xl font-black text-slate-800">高雄市新莊國小</h1>
+    <p class="text-slate-500 mt-1">新生線上報到系統</p>
+    <button onclick="document.getElementById('zoneModal').classList.remove('hidden')"
+      class="mt-3 text-sm text-blue-600 font-bold border border-blue-200 bg-white/80 px-4 py-2 rounded-full hover:bg-blue-50 transition">
+      🗺️ 本校學區戶籍查詢
+    </button>
+  </div>
+
+  <!-- Step 1: 驗證 -->
+  <div id="step1" class="max-w-2xl mx-auto card rounded-3xl p-8 shadow-xl mb-6">
+    <div class="section-title">步驟一：新生身分驗證</div>
+    <p class="text-sm text-red-500 mb-6 bg-red-50 p-3 rounded-xl">
+      ⚠️ 請輸入學生資料進行驗證。非本校學籍名單內的學生無法透過此系統報到。
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div>
+        <label class="required">學生身分證字號</label>
+        <input type="text" id="inputId" placeholder="例：A123456789" maxlength="10"
+          class="uppercase" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div>
+        <label class="required">出生日期（民國）</label>
+        <input type="text" id="inputBirth" placeholder="例：1080101" maxlength="7">
+      </div>
+    </div>
+    <button onclick="verifyStudent()"
+      class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl text-lg transition shadow-lg">
+      驗證身分，開始報到
+    </button>
+    <div id="verifyMsg" class="hidden mt-4 p-4 rounded-xl text-sm font-bold"></div>
+  </div>
+
+  <!-- Step 2: 表單 -->
+  <div id="step2" class="hidden max-w-2xl mx-auto card rounded-3xl p-8 shadow-xl mb-6">
+    <div class="mb-6 p-4 bg-green-50 rounded-2xl border border-green-200">
+      <p class="text-green-700 font-bold">✅ 驗證成功！歡迎 <span id="studentNameDisplay" class="text-green-900"></span> 同學</p>
+    </div>
+
+    <form id="enrollForm" onsubmit="submitForm(event)">
+      <input type="hidden" id="hiddenDocId">
+
+      <!-- 一、基本資料（唯讀） -->
+      <div class="mb-8">
+        <div class="section-title">一、基本資料（系統帶入）</div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div><label>姓名</label><input type="text" id="ro_name" readonly class="bg-gray-100 cursor-not-allowed"></div>
+          <div><label>身分證字號</label><input type="text" id="ro_id" readonly class="bg-gray-100 cursor-not-allowed"></div>
+          <div><label>出生日期</label><input type="text" id="ro_birth" readonly class="bg-gray-100 cursor-not-allowed"></div>
         </div>
+      </div>
+
+      <!-- 二、聯絡與監護人 -->
+      <div class="mb-8">
+        <div class="section-title">二、聯絡與監護人資訊</div>
+        <div class="grid grid-cols-1 gap-4 mb-4">
+          <div><label class="required">聯絡地址</label><input type="text" name="聯絡地址" required placeholder="請填寫完整通訊地址"></div>
+          <div><label>家裡電話</label><input type="text" name="聯絡電話" placeholder="例：07-3411373"></div>
+        </div>
+        <div class="bg-blue-50 rounded-2xl p-4 mb-4">
+          <p class="text-xs font-black text-blue-600 uppercase tracking-wider mb-3">監護人資訊</p>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <label class="required">監護人稱謂</label>
+              <select name="監護人">
+                <option value="">請選擇</option>
+                <option>父</option><option>母</option><option>祖父</option>
+                <option>祖母</option><option>其他親屬</option>
+              </select>
+            </div>
+            <div><label class="required">監護人姓名</label><input type="text" name="監護人姓名" required></div>
+            <div><label>監護人電話</label><input type="tel" name="監護人電話" placeholder="09xxxxxxxx"></div>
+            <div><label>父親手機</label><input type="tel" name="父親手機號碼" placeholder="09xxxxxxxx"></div>
+            <div><label>母親手機</label><input type="tel" name="母親手機號碼" placeholder="09xxxxxxxx"></div>
+          </div>
+        </div>
+        <div class="bg-red-50 rounded-2xl p-4 border border-red-100">
+          <p class="text-xs font-black text-red-500 uppercase tracking-wider mb-3">緊急聯絡人（必填）</p>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div><label class="required">緊急聯絡人姓名</label><input type="text" name="緊急聯絡人姓名" required></div>
+            <div><label class="required">與學生關係</label><input type="text" name="緊急聯絡人與新生關係" required placeholder="例：阿姨"></div>
+            <div><label class="required">緊急聯絡電話</label><input type="tel" name="緊急聯絡人電話" required placeholder="09xxxxxxxx"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 三、身分與健康 -->
+      <div class="mb-8">
+        <div class="section-title">三、身分與健康狀況</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label>低收/中低收資格</label>
+            <select name="低收/中低收">
+              <option value="無">無</option>
+              <option value="低收入戶">低收入戶</option>
+              <option value="中低收入戶">中低收入戶</option>
+            </select>
+          </div>
+          <div><label>關注疾病（如有）</label><input type="text" name="關注疾病" placeholder="如無請填「無」"></div>
+          <div>
+            <label>學生是否身心障礙</label>
+            <select name="學生是否身心障礙" onchange="toggleField(this,'disabilityType')">
+              <option value="否">否</option><option value="是">是</option>
+            </select>
+          </div>
+          <div id="disabilityType" class="hidden">
+            <label>障礙類別</label>
+            <input type="text" name="學生身心障礙類別">
+          </div>
+          <div>
+            <label>父母是否身心障礙</label>
+            <select name="父母是否身心障礙" onchange="toggleField(this,'parentDisabilityType')">
+              <option value="否">否</option><option value="是">是</option>
+            </select>
+          </div>
+          <div id="parentDisabilityType" class="hidden">
+            <label>父母障礙類別</label>
+            <input type="text" name="父母身心障礙類別">
+          </div>
+          <div><label>原住民族別（如有）</label><input type="text" name="原住民學生族別" placeholder="如無請留空"></div>
+          <div><label>外配子女父母國籍（如有）</label><input type="text" name="外配子女父母國籍" placeholder="如無請留空"></div>
+        </div>
+      </div>
+
+      <!-- 四、學校選修事項 -->
+      <div class="mb-8">
+        <div class="section-title">四、學校選修與其他調查</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="required">本土語言選修</label>
+            <select name="選修本土語" required>
+              <option value="">請選擇</option>
+              <option value="是">是</option><option value="否">否</option>
+            </select>
+          </div>
+          <div>
+            <label>語言名稱</label>
+            <select name="本土語言名稱">
+              <option value="">請選擇</option>
+              <option>閩南語</option><option>客家語</option>
+              <option>原住民族語</option><option>越南語</option>
+              <option>印尼語</option><option>其他新住民語</option>
+            </select>
+          </div>
+          <div>
+            <label class="required">營養午餐</label>
+            <select name="營養午餐類型" required>
+              <option value="">請選擇</option>
+              <option value="葷食">葷食</option><option value="素食">素食</option>
+            </select>
+          </div>
+          <div>
+            <label>兄弟姐妹是否同時在校</label>
+            <select name="兄弟姐妹同時入學" onchange="toggleField(this,'siblingName')">
+              <option value="否">否</option><option value="是">是</option>
+            </select>
+          </div>
+          <div id="siblingName" class="hidden md:col-span-2">
+            <label>兄弟姐妹姓名及班級</label>
+            <input type="text" name="兄弟姐妹姓名" placeholder="例：王大明（3年1班）">
+          </div>
+        </div>
+      </div>
+
+      <!-- 個資同意 -->
+      <div class="bg-blue-50 rounded-2xl p-4 mb-6 border border-blue-100">
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" required class="mt-1 w-5 h-5 flex-shrink-0">
+          <span class="text-sm text-slate-700">
+            本人已閱讀並同意提供以上資料供<strong>高雄市新莊國小</strong>學籍建檔使用，
+            資料將依個人資料保護法相關規定保管。
+          </span>
+        </label>
+      </div>
+
+      <button type="submit"
+        class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-5 rounded-2xl text-xl transition shadow-xl">
+        確認送出報到資料
+      </button>
+    </form>
+  </div>
+
+  <!-- Step 3: 完成畫面 -->
+  <div id="step3" class="hidden max-w-2xl mx-auto card rounded-3xl p-10 shadow-xl mb-6 text-center border-4 border-green-400">
+    <div class="text-7xl mb-4">✅</div>
+    <h2 class="text-3xl font-black text-slate-800 mb-2">線上報到完成！</h2>
+    <div class="bg-slate-50 rounded-2xl p-4 my-6 text-left inline-block w-full max-w-sm mx-auto">
+      <p class="text-lg mb-1">學生姓名：<span id="successName" class="font-black text-blue-600"></span></p>
+      <p class="text-lg">報到時間：<span id="successTime" class="font-black text-slate-700"></span></p>
     </div>
-
-    <div id="surveyStep" class="hidden glass w-full max-w-2xl p-8 rounded-3xl shadow-2xl my-10">
-        <h2 class="text-xl font-bold mb-6 border-b pb-4"><span id="displayName" class="text-blue-600">--</span> 同學，您好</h2>
-        <form id="enrollForm" class="space-y-8">
-            <input type="hidden" id="studentId">
-            <section>
-                <label class="block font-black mb-3 text-slate-700">1. 本土語文選修</label>
-                <div class="grid grid-cols-2 gap-3">
-                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="閩南語" class="mr-2" required> 閩南語</label>
-                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="客家語" class="mr-2"> 客家語</label>
-                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="原民語" class="mr-2"> 原民語</label>
-                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="新住民語" class="mr-2"> 新住民語</label>
-                </div>
-            </section>
-            <section>
-                <label class="block font-black mb-3 text-slate-700">2. 聯絡資訊</label>
-                <input type="tel" id="phone" placeholder="監護人手機" required class="w-full px-4 py-3 border rounded-xl mb-3">
-                <input type="text" id="address" placeholder="通訊地址" required class="w-full px-4 py-3 border rounded-xl">
-            </section>
-            <button type="submit" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg">確認送出報到</button>
-        </form>
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-4 mb-4">
+      <p class="text-red-700 font-black text-lg">⚠️ 請務必來電通知</p>
+      <p class="text-red-600 text-2xl font-black mt-1">3411373 #112</p>
+      <p class="text-red-500 text-sm mt-1">新莊國小 註冊組</p>
     </div>
+    <p class="text-slate-600 mb-2">本次報到已在本校系統中完成，<strong>無須攜帶戶口名簿</strong>等紙本資料到校。</p>
+    <p class="text-slate-400 text-sm mt-4">📸 建議截圖此畫面留存</p>
+  </div>
 
-    <div id="successStep" class="hidden glass w-full max-w-md p-10 rounded-3xl shadow-2xl text-center">
-        <div class="text-6xl mb-4">✅</div>
-        <h2 class="text-2xl font-black mb-4">報到資料已送出</h2>
-        <button onclick="location.reload()" class="text-blue-600 font-bold underline">回首頁</button>
+  <!-- 學區查詢 Modal -->
+  <div id="zoneModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[85vh] overflow-y-auto">
+      <h2 class="text-2xl font-black text-blue-700 border-b pb-3 mb-4">🗺️ 新莊國小學區戶籍說明</h2>
+      <div class="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+        <p class="text-red-700 font-bold text-sm">
+          ⚠️ 需要確認詳細里鄰，否則可能有其他學校來找您回去的情形，本校不敢貿然收入。
+        </p>
+      </div>
+      <ul class="space-y-2 font-semibold mb-4">
+        <li class="flex gap-2"><span class="text-blue-600 w-20 flex-shrink-0">新下里</span><span>1~9鄰、21鄰、25鄰、36鄰</span></li>
+        <li class="flex gap-2"><span class="text-blue-600 w-20 flex-shrink-0">新上里</span><span>1~17鄰、23~31鄰、46~48鄰、52鄰、55鄰</span></li>
+        <li class="flex gap-2"><span class="text-blue-600 w-20 flex-shrink-0">新中里</span><span>全里</span></li>
+        <li class="flex gap-2"><span class="text-blue-600 w-20 flex-shrink-0">菜公里</span><span>1~3鄰、42~43鄰、49鄰、53鄰、59鄰、64鄰</span></li>
+        <li class="flex gap-2"><span class="text-blue-600 w-20 flex-shrink-0">鼎力里</span><span>1~2鄰</span></li>
+      </ul>
+      <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 text-sm text-orange-700 font-bold text-center">
+        如有租屋戶籍問題，請自行善用里民服務，本校沒有相關戶籍協助措施。
+      </div>
+      <div class="space-y-2 text-sm">
+        <a href="https://www.sjps.kh.edu.tw/index.php?WebID=85" target="_blank"
+          class="flex items-center gap-2 text-blue-600 hover:underline">🔗 新莊國小校網</a>
+        <a href="https://affairs.kh.edu.tw/8239" target="_blank"
+          class="flex items-center gap-2 text-blue-600 hover:underline">🔗 新莊國小學籍網</a>
+      </div>
+      <button onclick="document.getElementById('zoneModal').classList.add('hidden')"
+        class="w-full mt-6 bg-slate-600 text-white py-3 rounded-2xl font-bold hover:bg-slate-700 transition">
+        關閉
+      </button>
     </div>
+  </div>
 
-    <script type="module">
-        import { db } from './js/firebase-config.js';
-        import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  <script type="module">
+    import { db } from './js/firebase-config.js';
+    import { collection, query, where, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        const TEST_ID = "T123456789";
+    const TEST_ID = 'T123456789';
+    let currentDocId = null;
 
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const id = document.getElementById('idNumber').value.trim().toUpperCase();
-            const bday = document.getElementById('birthday').value;
-            if(!id || !bday) return alert("請輸入完整資料");
+    // 條件顯示欄位
+    window.toggleField = (select, targetId) => {
+      const el = document.getElementById(targetId);
+      if (el) el.classList.toggle('hidden', select.value !== '是');
+    };
 
-            const snap = await getDoc(doc(db, "students", id));
-            if (!snap.exists()) return alert("資料庫無此學生");
+    // 驗證學生身分
+    window.verifyStudent = async () => {
+      const inputId = document.getElementById('inputId').value.trim().toUpperCase();
+      const inputBirth = document.getElementById('inputBirth').value.trim();
+      const msg = document.getElementById('verifyMsg');
 
-            const data = snap.data();
-            if (data["出生年月日"] !== bday) return alert("生日不符");
-            
-            // 測試帳號不擋重複報到
-            if (data["報到狀態"] === "線上報到" && id !== TEST_ID) {
-                return alert("您先前已報到完成！");
-            }
+      const showMsg = (text, isError = true) => {
+        msg.textContent = text;
+        msg.className = `mt-4 p-4 rounded-xl text-sm font-bold ${isError ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600'}`;
+        msg.classList.remove('hidden');
+      };
 
-            document.getElementById('loginStep').classList.add('hidden');
-            document.getElementById('surveyStep').classList.remove('hidden');
-            document.getElementById('displayName').innerText = data["姓名"];
-            document.getElementById('studentId').value = id;
-        });
+      if (!inputId || !inputBirth) return showMsg('請填寫身分證字號與出生日期');
+      if (!/^[A-Z][12]\d{8}$/.test(inputId)) return showMsg('身分證字號格式不正確，請重新確認');
+      if (inputBirth.length < 6) return showMsg('出生日期格式不正確，請填寫民國年份，例：1080101');
 
-        document.getElementById('enrollForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('studentId').value;
-            const updateData = {
-                "報到狀態": "線上報到",
-                "本土語言名稱": document.querySelector('input[name="lang"]:checked').value,
-                "聯絡電話": document.getElementById('phone').value,
-                "通訊地址": document.getElementById('address').value,
-                "報到時間": new Date().toLocaleString()
-            };
-            await updateDoc(doc(db, "students", id), updateData);
-            document.getElementById('surveyStep').classList.add('hidden');
-            document.getElementById('successStep').classList.remove('hidden');
-        });
-    </script>
+      try {
+        // 同時相容「身份證號」和「身分證號」兩種欄位名
+        let snap = await getDocs(query(collection(db, 'students'), where('身份證號', '==', inputId)));
+        if (snap.empty) snap = await getDocs(query(collection(db, 'students'), where('身分證號', '==', inputId)));
+
+        if (snap.empty) {
+          return showMsg('查無資料。可能您不是本校學籍名單內的學生，請直接攜帶戶口名簿到本校進行紙本報到。');
+        }
+
+        const docSnap = snap.docs[0];
+        const data = docSnap.data();
+        const dbBirth = (data.出生日期 || data.出生年月日 || '').toString().replace(/\D/g, '');
+        const cleanInputBirth = inputBirth.replace(/\D/g, '');
+
+        if (dbBirth !== cleanInputBirth) {
+          return showMsg('出生日期驗證失敗，請確認輸入是否正確。');
+        }
+
+        // 已報到判斷（測試帳號例外）
+        if (data.報到狀態 === '已報到' && inputId !== TEST_ID) {
+          return showMsg('您已完成線上報到。如需修改資料，請致電 3411373#112 聯絡註冊組。');
+        }
+
+        // 驗證成功
+        currentDocId = docSnap.id;
+        document.getElementById('studentNameDisplay').textContent = data.姓名 || '';
+        document.getElementById('ro_name').value = data.姓名 || '';
+        document.getElementById('ro_id').value = inputId;
+        document.getElementById('ro_birth').value = data.出生日期 || data.出生年月日 || inputBirth;
+        document.getElementById('hiddenDocId').value = docSnap.id;
+
+        document.getElementById('step1').classList.add('hidden');
+        document.getElementById('step2').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        console.error(e);
+        showMsg('系統連線異常，請稍後再試。');
+      }
+    };
+
+    // 送出報到表單
+    window.submitForm = async e => {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type=submit]');
+      btn.textContent = '資料傳送中...';
+      btn.disabled = true;
+
+      try {
+        const formData = new FormData(e.target);
+        const updates = Object.fromEntries(formData.entries());
+        updates.報到狀態 = '已報到';
+        updates.報到時間 = new Date().toLocaleString('zh-TW', { hour12: false });
+
+        await updateDoc(doc(db, 'students', currentDocId), updates);
+
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('step3').classList.remove('hidden');
+        document.getElementById('successName').textContent = document.getElementById('ro_name').value;
+        document.getElementById('successTime').textContent = updates.報到時間;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        console.error(err);
+        alert('送出失敗，請重試或聯絡學校。');
+        btn.textContent = '確認送出報到資料';
+        btn.disabled = false;
+      }
+    };
+  </script>
 </body>
 </html>
