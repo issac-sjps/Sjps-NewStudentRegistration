@@ -1,81 +1,185 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>後台管理 - 新生報到系統</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-</head>
-<body class="bg-gray-100 flex h-screen overflow-hidden text-gray-800">
+// js/dashboard.js
+import { db } from './firebase-config.js';
+import { collection, getDocs, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    <aside class="w-64 bg-slate-800 text-white flex flex-col">
-        <div class="p-4 border-b border-slate-700">
-            <h2 class="text-xl font-bold">新莊註冊組後台</h2>
-        </div>
-        <nav class="flex-1 p-4 space-y-2" id="sidebarMenu">
-            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-2 rounded bg-blue-600 font-bold">📊 報到儀表板</button>
-            <button data-target="importPanel" class="menu-btn w-full text-left p-2 rounded hover:bg-slate-700">📥 匯入基礎名冊</button>
-            <button data-target="exportPanel" class="menu-btn w-full text-left p-2 rounded hover:bg-slate-700">📋 導師分班產出</button>
-            <button data-target="settingsPanel" class="menu-btn w-full text-left p-2 rounded hover:bg-slate-700 text-red-400 mt-10">⚙️ 系統設定與重置</button>
-        </nav>
-    </aside>
+// === 1. 選單切換邏輯 ===
+const menuBtns = document.querySelectorAll('.menu-btn');
+const panels = document.querySelectorAll('.panel-section');
 
-    <main class="flex-1 overflow-y-auto p-8 relative">
+menuBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        // 重置按鈕樣式
+        menuBtns.forEach(b => { b.classList.remove('bg-blue-600', 'font-bold'); b.classList.add('hover:bg-slate-700'); });
+        btn.classList.add('bg-blue-600', 'font-bold');
+        btn.classList.remove('hover:bg-slate-700');
         
-        <section id="dashboardPanel" class="panel-section block">
-            <h2 class="text-2xl font-bold mb-6 border-b pb-2">📊 報到儀表板</h2>
-            <div class="grid grid-cols-3 gap-4 mb-6">
-                <div class="bg-white p-4 rounded shadow border-l-4 border-blue-500"><p class="text-sm text-gray-500">總人數</p><p id="statTotal" class="text-2xl font-bold">0</p></div>
-                <div class="bg-white p-4 rounded shadow border-l-4 border-green-500"><p class="text-sm text-gray-500">已報到</p><p id="statDone" class="text-2xl font-bold text-green-600">0</p></div>
-                <div class="bg-white p-4 rounded shadow border-l-4 border-red-500"><p class="text-sm text-gray-500">未報到</p><p id="statPending" class="text-2xl font-bold text-red-600">0</p></div>
-            </div>
-            <div class="bg-white rounded shadow overflow-hidden">
-                <div class="p-4 bg-gray-50 border-b flex justify-between items-center">
-                    <h3 class="font-bold">學生名單速覽</h3>
-                    <button id="refreshTableBtn" class="text-sm bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">🔄 重新整理</button>
-                </div>
-                <table class="w-full text-left border-collapse">
-                    <thead><tr class="bg-gray-100 text-sm"><th class="p-3 border-b">學生姓名</th><th class="p-3 border-b">身份證號</th><th class="p-3 border-b">狀態</th><th class="p-3 border-b">報到時間</th></tr></thead>
-                    <tbody id="studentTableBody" class="text-sm"><tr><td colspan="4" class="p-4 text-center text-gray-500">載入中...</td></tr></tbody>
-                </table>
-            </div>
-        </section>
+        // 切換面板
+        const targetId = btn.getAttribute('data-target');
+        panels.forEach(panel => {
+            if (panel.id === targetId) {
+                panel.classList.remove('hidden');
+                panel.classList.add('block');
+                if(targetId === 'dashboardPanel') loadDashboardData(); // 切換到儀表板時自動重整
+            } else {
+                panel.classList.remove('block');
+                panel.classList.add('hidden');
+            }
+        });
+    });
+});
 
-        <section id="importPanel" class="panel-section hidden bg-white p-6 rounded-lg shadow-md max-w-3xl">
-            <h2 class="text-2xl font-bold mb-6 border-b pb-2">📥 匯入基礎名冊 (Excel)</h2>
-            <div class="mb-4">
-                <p class="text-sm text-gray-600 mb-4">請上傳教育局提供的 Excel 檔。系統會以「身份證號」為基準，自動建立或更新名單。</p>
-                <div class="flex items-center space-x-4">
-                    <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="border p-2 rounded w-full">
-                    <button id="importBtn" class="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 whitespace-nowrap">開始匯入</button>
-                </div>
-            </div>
-            <div id="importStatus" class="mt-4 text-sm font-bold"></div>
-        </section>
+// === 2. 儀表板資料載入 ===
+async function loadDashboardData() {
+    const tbody = document.getElementById('studentTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">資料載入中...</td></tr>';
+    
+    try {
+        const querySnapshot = await getDocs(collection(db, "students"));
+        let total = 0; let done = 0; let pending = 0;
+        let html = '';
 
-        <section id="exportPanel" class="panel-section hidden bg-white p-6 rounded-lg shadow-md max-w-3xl">
-            <h2 class="text-2xl font-bold mb-6 border-b pb-2">📋 導師分班產出 (匯出總表)</h2>
-            <p class="text-gray-600 mb-6">將目前資料庫中所有學生的完整資料（包含家長填寫的聯絡資訊與調查表）匯出成單一 Excel 檔案，供後續編班或校務系統建檔使用。</p>
-            <button id="exportBtn" class="bg-blue-600 text-white px-8 py-4 rounded-lg font-bold text-xl hover:bg-blue-700 shadow flex items-center justify-center w-full md:w-auto">
-                ⬇️ 下載完整新生名冊 Excel
-            </button>
-            <p id="exportStatus" class="mt-4 text-sm font-bold text-green-600 hidden">✅ 下載成功！</p>
-        </section>
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            total++;
+            if (data["報到狀態"] === '已報到') done++; else pending++;
+            
+            const statusBadge = data["報到狀態"] === '已報到' 
+                ? '<span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-bold">已報到</span>' 
+                : '<span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">未報到</span>';
 
-        <section id="settingsPanel" class="panel-section hidden bg-white p-6 rounded-lg shadow-md max-w-3xl">
-            <h2 class="text-2xl font-bold mb-6 border-b pb-2">⚙️ 系統設定與年度維護</h2>
-            <div class="mb-8 p-4 bg-red-50 border border-red-200 rounded">
-                <h3 class="text-lg font-bold text-red-700 mb-2">⚠️ 年度資料重置 (危險操作)</h3>
-                <p class="text-sm text-gray-600 mb-4">這將會清空 Firebase 資料庫中所有的學生紀錄。請輸入 <strong class="text-red-600">確認清空</strong> 來解鎖按鈕。</p>
-                <div class="flex items-center space-x-4">
-                    <input type="text" id="resetInput" placeholder="輸入確認指令" class="border p-2 rounded w-64 border-red-300">
-                    <button id="resetBtn" class="bg-red-600 text-white px-4 py-2 rounded font-bold opacity-50 cursor-not-allowed" disabled>執行年度資料重置</button>
-                </div>
-            </div>
-        </section>
+            html += `
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="p-3">${data["姓名"] || ''}</td>
+                    <td class="p-3">${data["身份證號"] || ''}</td>
+                    <td class="p-3">${statusBadge}</td>
+                    <td class="p-3 text-gray-500">${data["報到時間"] || '-'}</td>
+                </tr>
+            `;
+        });
 
-    </main>
-    <script type="module" src="js/dashboard.js"></script>
-</body>
-</html>
+        document.getElementById('statTotal').innerText = total;
+        document.getElementById('statDone').innerText = done;
+        document.getElementById('statPending').innerText = pending;
+        tbody.innerHTML = html || '<tr><td colspan="4" class="p-4 text-center text-gray-500">目前尚無資料</td></tr>';
+
+    } catch (error) {
+        console.error("載入儀表板失敗:", error);
+        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">資料載入失敗，請檢查權限</td></tr>';
+    }
+}
+document.getElementById('refreshTableBtn').addEventListener('click', loadDashboardData);
+// 初始載入
+loadDashboardData();
+
+// === 3. Excel 匯入功能 ===
+const excelFile = document.getElementById('excelFile');
+const importBtn = document.getElementById('importBtn');
+const importStatus = document.getElementById('importStatus');
+
+importBtn.addEventListener('click', () => {
+    const file = excelFile.files[0];
+    if (!file) return alert("請先選擇 Excel 檔案！");
+
+    importBtn.innerText = "處理中..."; importBtn.disabled = true;
+    importStatus.innerText = "解析中..."; importStatus.className = "mt-4 text-blue-600";
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+
+            let successCount = 0;
+            for (let row of jsonData) {
+                // 自動相容欄位名稱
+                const rocId = (row['身份證號'] || row['身分證號'] || "").toString().trim().toUpperCase();
+                row['身份證號'] = rocId; // 統一寫入正確的 key
+                if (!row['報到狀態']) row['報到狀態'] = '未報到';
+
+                if (!rocId || !row['姓名']) continue; 
+
+                await setDoc(doc(db, "students", rocId), row, { merge: true });
+                successCount++;
+                if (successCount % 10 === 0) importStatus.innerText = `寫入中... 已處理 ${successCount} 筆`;
+            }
+
+            importStatus.innerText = `✅ 匯入成功！共更新 ${successCount} 筆資料。`;
+            importStatus.className = "mt-4 text-green-600";
+            excelFile.value = ""; 
+            loadDashboardData(); // 重整儀表板
+
+        } catch (error) {
+            console.error(error);
+            importStatus.innerText = "❌ 匯入失敗：格式錯誤或權限不足。";
+            importStatus.className = "mt-4 text-red-600";
+        } finally {
+            importBtn.innerText = "開始匯入"; importBtn.disabled = false;
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+// === 4. 導師分班產出 (匯出 Excel) ===
+document.getElementById('exportBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('exportBtn');
+    const status = document.getElementById('exportStatus');
+    btn.innerText = "資料整理中..."; btn.disabled = true;
+
+    try {
+        const querySnapshot = await getDocs(collection(db, "students"));
+        const dataArr = [];
+        querySnapshot.forEach((doc) => {
+            dataArr.push(doc.data());
+        });
+
+        if (dataArr.length === 0) throw new Error("無資料可匯出");
+
+        // 使用 SheetJS 產生 Excel 並下載
+        const worksheet = XLSX.utils.json_to_sheet(dataArr);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "新生名冊總表");
+        
+        const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
+        XLSX.writeFile(workbook, `115學年度新生報到總表_${dateStr}.xlsx`);
+
+        status.classList.remove('hidden');
+        setTimeout(() => status.classList.add('hidden'), 5000);
+
+    } catch (error) {
+        console.error("匯出失敗:", error);
+        alert("匯出失敗，可能目前沒有資料或連線異常。");
+    } finally {
+        btn.innerHTML = "⬇️ 下載完整新生名冊 Excel"; btn.disabled = false;
+    }
+});
+
+// === 5. 年度重置功能 ===
+const resetInput = document.getElementById('resetInput');
+const resetBtn = document.getElementById('resetBtn');
+
+resetInput.addEventListener('input', (e) => {
+    if (e.target.value === '確認清空') {
+        resetBtn.disabled = false; resetBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        resetBtn.disabled = true; resetBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+});
+
+resetBtn.addEventListener('click', async () => {
+    if (confirm("⚠️ 警告！這將永久刪除所有資料，確定執行？")) {
+        resetBtn.innerText = "清空中..."; resetBtn.disabled = true;
+        try {
+            const querySnapshot = await getDocs(collection(db, "students"));
+            const promises = [];
+            querySnapshot.forEach((document) => promises.push(deleteDoc(doc(db, "students", document.id))));
+            await Promise.all(promises);
+            
+            alert("✅ 資料已清空！");
+            resetInput.value = ''; resetBtn.innerText = "執行年度資料重置";
+            loadDashboardData();
+        } catch (error) {
+            console.error("刪除失敗:", error); alert("權限不足或連線失敗。");
+        }
+    }
+});
