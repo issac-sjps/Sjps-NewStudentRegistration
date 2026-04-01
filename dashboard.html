@@ -3,23 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新莊國小註冊組 - 管理後台</title>
+    <title>新莊國小註冊組 - 數據分析後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .sidebar-active { background-color: rgba(255,255,255,0.15); border-left: 4px solid white; font-weight: bold; }
-        .table-container { overflow-x: auto; max-height: 60vh; }
-        th { white-space: nowrap; position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+        .sidebar-active { background: #334155; border-left: 4px solid #60a5fa; font-weight: bold; }
+        .table-scroll { overflow-x: auto; max-height: 500px; }
+        th { position: sticky; top: 0; background: #f1f5f9; z-index: 10; white-space: nowrap; }
         td { white-space: nowrap; }
     </style>
 </head>
-<body class="bg-slate-50 flex h-screen overflow-hidden">
+<body class="bg-slate-100 flex h-screen overflow-hidden text-slate-900">
 
-    <aside class="w-64 bg-slate-800 text-white flex flex-col shadow-xl">
-        <div class="p-6 border-b border-slate-700 text-center font-bold text-xl tracking-widest">管理後台</div>
-        <nav class="flex-1 p-4 space-y-1" id="sidebarMenu">
+    <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col shadow-2xl">
+        <div class="p-6 border-b border-slate-700 font-black text-xl tracking-tighter">新莊註冊組後台</div>
+        <nav class="flex-1 p-4 space-y-2" id="sidebarMenu">
             <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active transition">📊 報到儀表板</button>
+            <button data-target="analysisPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📈 進階數據分析</button>
             <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📥 匯入基礎名冊</button>
             <button data-target="exportPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📋 導師分班產出</button>
             <button data-target="settingsPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 text-red-400 mt-10 transition">⚙️ 系統設定重置</button>
@@ -28,74 +29,106 @@
 
     <main class="flex-1 flex flex-col overflow-hidden">
         
-        <section id="dashboardPanel" class="panel-section block flex flex-col h-full p-6 overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">報到進度統計</h2>
-                <button id="refreshTableBtn" class="bg-white border px-4 py-2 rounded shadow-sm hover:shadow-md transition">🔄 立即更新資料</button>
+        <section id="dashboardPanel" class="panel-section block h-full p-8 overflow-y-auto">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-black">報到儀表板</h2>
+                <span id="updateTime" class="text-slate-400 text-sm italic"></span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-500">
+                    <p class="text-slate-400 text-xs font-bold uppercase">總人數</p>
+                    <p id="statTotal" class="text-4xl font-black">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-green-500">
+                    <p class="text-slate-400 text-xs font-bold uppercase">已報到</p>
+                    <p id="statDone" class="text-4xl font-black text-green-600">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-red-500">
+                    <p class="text-slate-400 text-xs font-bold uppercase">未報到</p>
+                    <p id="statPending" class="text-4xl font-black text-red-600">0</p>
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col items-center">
-                    <h3 class="text-gray-500 text-sm mb-4">報到狀態比例</h3>
-                    <div class="h-40 w-40"><canvas id="pieChart"></canvas></div>
-                    <div class="mt-4 flex space-x-4 text-sm">
-                        <span>總數: <b id="statTotal">0</b></span>
-                        <span class="text-green-600">已報到: <b id="statDone">0</b></span>
-                        <span class="text-red-500">未報到: <b id="statPending">0</b></span>
-                    </div>
-                </div>
-                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
-                    <h3 class="text-gray-500 text-sm mb-4">本土語言選修統計</h3>
-                    <div class="h-48 w-full"><canvas id="barChart"></canvas></div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-                <div class="p-4 border-b bg-slate-50 flex justify-between text-sm">
-                    <span class="font-bold">學生名冊明細 (橫向捲動查看更多)</span>
-                    <span id="updateTime" class="text-slate-400 italic">尚未載入</span>
-                </div>
-                <div class="table-container flex-1">
+            <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <div class="p-4 border-b font-bold bg-slate-50">即時報到名單</div>
+                <div class="table-scroll">
                     <table class="w-full text-left text-sm">
                         <thead>
-                            <tr class="border-b">
-                                <th class="p-3">狀態</th><th class="p-3">姓名</th><th class="p-3">身份證號</th><th class="p-3">學生編號</th>
-                                <th class="p-3">本土語</th><th class="p-3">監護人</th><th class="p-3">監護人電話</th>
-                                <th class="p-3">出生日期</th><th class="p-3">地址</th><th class="p-3">報到時間</th>
+                            <tr class="text-slate-500 uppercase text-xs">
+                                <th class="p-4 border-b">狀態</th><th class="p-4 border-b">姓名</th><th class="p-4 border-b">身分證號</th><th class="p-4 border-b">本土語</th><th class="p-4 border-b">電話</th>
                             </tr>
                         </thead>
-                        <tbody id="studentTableBody" class="divide-y">
-                            <tr><td colspan="10" class="p-10 text-center text-slate-400 italic">資料載入中...</td></tr>
-                        </tbody>
+                        <tbody id="quickTableBody" class="divide-y"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="analysisPanel" class="panel-section hidden h-full p-8 overflow-y-auto">
+            <h2 class="text-3xl font-black mb-8">📈 數據統計分析</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border">
+                    <h3 class="text-center font-bold text-slate-500 mb-6 uppercase tracking-widest">報到狀態細分</h3>
+                    <div class="h-64"><canvas id="anaPieChart"></canvas></div>
+                </div>
+                <div class="bg-white p-8 rounded-3xl shadow-sm border">
+                    <h3 class="text-center font-bold text-slate-500 mb-6 uppercase tracking-widest">本土語選修分布</h3>
+                    <div class="h-64"><canvas id="anaBarChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-sm border">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-4">
+                        <span class="font-bold">篩選狀態：</span>
+                        <select id="statusFilter" class="border-2 border-slate-200 p-2 rounded-xl focus:border-blue-500 outline-none">
+                            <option value="全部">全部顯示</option>
+                            <option value="線上報到">線上報到</option>
+                            <option value="未報到">未報到</option>
+                            <option value="美國">出國 (美國)</option>
+                            <option value="越南">出國 (越南)</option>
+                        </select>
+                    </div>
+                    <div class="text-slate-500">篩選結果：<span id="filteredCount" class="font-bold text-blue-600">0</span> 人</div>
+                </div>
+                <div class="table-scroll border rounded-xl">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-800 text-white">
+                            <tr>
+                                <th class="p-3">姓名</th><th class="p-3">學生編號</th><th class="p-3">身份證號</th><th class="p-3">本土語名稱</th><th class="p-3">聯絡電話</th><th class="p-3">地址</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analysisTableBody" class="divide-y"></tbody>
                     </table>
                 </div>
             </div>
         </section>
 
         <section id="importPanel" class="panel-section hidden p-10">
-            <div class="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
-                <h2 class="text-xl font-bold mb-6 italic text-slate-700">📥 匯入 Excel 學生名冊</h2>
-                <div class="space-y-4">
-                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full border p-3 rounded-lg bg-slate-50">
-                    <button id="importBtn" class="w-full bg-slate-800 text-white font-bold py-4 rounded-xl hover:bg-slate-700 transition shadow-lg">開始執行匯入</button>
-                    <div id="importStatus" class="mt-4 text-center font-bold"></div>
-                </div>
+            <div class="max-w-xl mx-auto bg-white p-10 rounded-3xl shadow-2xl border">
+                <h2 class="text-2xl font-bold mb-6">📥 匯入基礎名冊</h2>
+                <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full mb-6 border-2 border-dashed p-10 rounded-2xl">
+                <button id="importBtn" class="w-full bg-slate-800 text-white font-bold py-5 rounded-2xl hover:bg-slate-700 shadow-xl transition">執行匯入</button>
+                <div id="importStatus" class="mt-4 text-center"></div>
             </div>
         </section>
 
         <section id="exportPanel" class="panel-section hidden p-10 text-center">
-            <div class="max-w-md mx-auto bg-white p-10 rounded-2xl shadow-lg">
-                <div class="text-5xl mb-6">📋</div>
-                <h2 class="text-xl font-bold mb-4">產生導師分班總表</h2>
-                <button id="exportBtn" class="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-700 transition w-full shadow-lg">下載完整 Excel</button>
+            <div class="max-w-md mx-auto bg-white p-12 rounded-3xl shadow-xl">
+                <div class="text-6xl mb-6">📋</div>
+                <h2 class="text-2xl font-bold mb-4">導師分班產出</h2>
+                <button id="exportBtn" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold hover:bg-blue-700 shadow-lg">下載完整 Excel 表格</button>
             </div>
         </section>
 
         <section id="settingsPanel" class="panel-section hidden p-10">
-            <div class="max-w-md mx-auto bg-red-50 p-8 rounded-2xl border border-red-200">
-                <h2 class="text-red-700 font-bold mb-4">⚠️ 年度資料重置</h2>
-                <input type="text" id="resetInput" placeholder="輸入「確認清空」" class="w-full p-3 border border-red-300 rounded-lg mb-4">
-                <button id="resetBtn" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold opacity-30" disabled>執行刪除</button>
+            <div class="max-w-md mx-auto bg-red-50 p-10 rounded-3xl border border-red-200">
+                <h2 class="text-red-600 font-bold mb-6">⚙️ 系統年度重置</h2>
+                <p class="text-sm text-red-400 mb-6">請注意：此操作將永久刪除雲端所有學生資料。</p>
+                <input type="text" id="resetInput" placeholder="輸入「確認清空」" class="w-full p-4 border-2 border-red-200 rounded-xl mb-4 text-center">
+                <button id="resetBtn" class="w-full bg-red-600 text-white py-4 rounded-xl font-bold opacity-20 transition" disabled>確認刪除</button>
             </div>
         </section>
 
