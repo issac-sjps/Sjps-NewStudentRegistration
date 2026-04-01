@@ -19,7 +19,7 @@ menuBtns.forEach(btn => {
             if (panel.id === targetId) {
                 panel.classList.remove('hidden');
                 panel.classList.add('block');
-                if(targetId === 'dashboardPanel') loadDashboardData(); // 切換到儀表板時自動重整
+                if(targetId === 'dashboardPanel') loadDashboardData(); // 切換到儀表板時自動重整統計資料
             } else {
                 panel.classList.remove('block');
                 panel.classList.add('hidden');
@@ -28,7 +28,7 @@ menuBtns.forEach(btn => {
     });
 });
 
-// === 2. 儀表板資料載入 ===
+// === 2. 儀表板資料載入 (統計計算) ===
 async function loadDashboardData() {
     const tbody = document.getElementById('studentTableBody');
     tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">資料載入中...</td></tr>';
@@ -57,6 +57,7 @@ async function loadDashboardData() {
             `;
         });
 
+        // 更新上方的統計數字
         document.getElementById('statTotal').innerText = total;
         document.getElementById('statDone').innerText = done;
         document.getElementById('statPending').innerText = pending;
@@ -107,7 +108,7 @@ importBtn.addEventListener('click', () => {
             importStatus.innerText = `✅ 匯入成功！共更新 ${successCount} 筆資料。`;
             importStatus.className = "mt-4 text-green-600";
             excelFile.value = ""; 
-            loadDashboardData(); // 重整儀表板
+            loadDashboardData(); // 重整統計儀表板
 
         } catch (error) {
             console.error(error);
@@ -141,7 +142,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
         XLSX.utils.book_append_sheet(workbook, worksheet, "新生名冊總表");
         
         const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
-        XLSX.writeFile(workbook, `115學年度新生報到總表_${dateStr}.xlsx`);
+        XLSX.writeFile(workbook, `新生報到總表_${dateStr}.xlsx`);
 
         status.classList.remove('hidden');
         setTimeout(() => status.classList.add('hidden'), 5000);
