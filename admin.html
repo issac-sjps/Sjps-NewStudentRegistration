@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>白名單管理 - 新生報到系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white h-screen flex justify-center items-center">
+
+    <div class="bg-slate-800 p-8 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700">
+        <h2 class="text-2xl font-bold mb-2 text-blue-400">🛡️ 最高權限管理員設定</h2>
+        <p class="text-sm text-slate-400 mb-6">僅超級管理員可新增/移除後台系統的白名單 Email。</p>
+
+        <div class="mb-6">
+            <label class="block text-sm font-bold mb-2">新增授權的 Google 帳號</label>
+            <div class="flex space-x-2">
+                <input type="email" placeholder="teacher@sjps.kh.edu.tw" class="flex-1 border-none p-2 rounded bg-slate-700 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
+                <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">加入</button>
+            </div>
+        </div>
+
+        <div class="bg-slate-700 rounded p-4 h-64 overflow-y-auto">
+            <h3 class="font-bold border-b border-slate-600 pb-2 mb-2">目前已授權名單</h3>
+            <ul class="space-y-2">
+                <li class="flex justify-between items-center bg-slate-600 p-2 rounded">
+                    <span>issac@sjps.kh.edu.tw <span class="text-xs bg-red-500 text-white px-1 rounded ml-2">Super Admin</span></span>
+                </li>
+                <li class="flex justify-between items-center bg-slate-600 p-2 rounded">
+                    <span>registrar@sjps.kh.edu.tw</span>
+                    <button class="text-red-400 hover:text-red-300 font-bold text-sm">移除</button>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <a href="dashboard.html" class="text-slate-400 hover:text-white underline text-sm">返回管理後台</a>
+        </div>
+    </div>
+
+    </body>
+</html>
