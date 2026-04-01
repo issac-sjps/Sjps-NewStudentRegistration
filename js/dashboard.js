@@ -4,7 +4,7 @@ import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from "https://
 let allData = [];
 let pieChart, barChart;
 
-// --- 選單切換 ---
+// --- 切換選單 ---
 document.querySelectorAll('.menu-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('sidebar-active'));
@@ -15,38 +15,49 @@ document.querySelectorAll('.menu-btn').forEach(btn => {
     });
 });
 
-// --- 讀取資料 ---
+// --- 讀取雲端資料 ---
 async function loadData() {
     const lamp = document.getElementById('connStatusLamp');
     try {
         const qs = await getDocs(collection(db, "students"));
         allData = [];
         qs.forEach(d => allData.push(d.data()));
-        allData.sort((a, b) => (a["班級"] || "ZZZ").localeCompare(b["班級"] || "ZZZ", 'zh-TW') || (parseInt(a["座號"]) || 99) - (parseInt(b["座號"]) || 99));
-        lamp.className = "w-3 h-3 rounded-full lamp-green";
+        
+        // 排序
+        allData.sort((a, b) => {
+            const cA = a["班級"] || "ZZZ";
+            const cB = b["班級"] || "ZZZ";
+            if (cA !== cB) return cA.localeCompare(cB, 'zh-TW');
+            return (parseInt(a["座號"]) || 99) - (parseInt(b["座號"]) || 99);
+        });
+
+        if(lamp) lamp.className = "w-3 h-3 rounded-full lamp-green";
         renderUI();
     } catch (e) {
-        lamp.className = "w-3 h-3 rounded-full lamp-red";
-        console.error(e);
+        if(lamp) lamp.className = "w-3 h-3 rounded-full lamp-red";
+        console.error("載入失敗:", e);
     }
 }
 
 // --- 渲染 UI ---
 function renderUI() {
+    const tableBody = document.getElementById('studentTableBody');
+    if (!tableBody) return; // 防止 null 報錯
+
     let stats = { "線上報到": 0, "未報到": 0, "出國": 0, "私校": 0, "遷徙": 0 };
     let tableHtml = '';
 
     allData.forEach(s => {
         const st = s["報到狀態"] || "未報到";
         if (stats[st] !== undefined) stats[st]++; else stats["未報到"]++;
-        const cls = s["班級"] ? `${s["班級"]}-${s["座號"] || ''}` : '<span class="text-gray-300">未編班</span>';
         
-        // 注意這裡：不再使用 onclick，改用 data-id
+        const cls = s["班級"] ? `${s["班級"]}-${s["座號"] || ''}` : '<span class="text-gray-300 italic">未編班</span>';
+        
         tableHtml += `
             <tr class="student-row hover:bg-blue-50 transition" data-id="${s["身份證號"]}">
                 <td class="p-4"><span class="px-2 py-1 rounded text-xs ${st==='線上報到'?'bg-green-100 text-green-700':'bg-gray-100'}">${st}</span></td>
-                <td class="p-4 font-bold">${cls}</td>
-                <td class="p-4 font-bold text-blue-700">${s["姓名"]}</td>
+                <td class="p-4 font-bold text-blue-600">${cls}</td>
+                <td class="p-4 font-bold">${s["姓名"]}</td>
                 <td class="p-4 text-gray-500">${s["聯絡電話"] || ''}</td>
                 <td class="p-4 text-blue-500 underline text-xs">修改</td>
             </tr>`;
@@ -56,9 +67,9 @@ function renderUI() {
     document.getElementById('statDone').innerText = stats["線上報到"];
     document.getElementById('statPending').innerText = stats["未報到"];
     document.getElementById('statOther').innerText = stats["出國"] + stats["私校"];
-    document.getElementById('studentTableBody').innerHTML = tableHtml;
+    tableBody.innerHTML = tableHtml || '<tr><td colspan="5" class="p-10 text-center text-gray-400">目前無資料</td></tr>';
 
-    // 重新綁定每一列的點擊事件
+    // 重新綁定點擊事件
     document.querySelectorAll('.student-row').forEach(row => {
         row.addEventListener('click', () => openEditModal(row.dataset.id));
     });
@@ -66,18 +77,23 @@ function renderUI() {
     updateCharts(stats);
 }
 
-// --- 圖表 ---
+// --- 統計圖表 ---
 function updateCharts(stats) {
-    const pCtx = document.getElementById('anaPieChart').getContext('2d');
+    const pCanvas = document.getElementById('anaPieChart');
+    if (!pCanvas) return;
+    const pCtx = pCanvas.getContext('2d');
     if (pieChart) pieChart.destroy();
     pieChart = new Chart(pCtx, {
         type: 'doughnut',
-        data: { labels: Object.keys(stats), datasets: [{ data: Object.values(stats), backgroundColor: ['#22c55e','#ef4444','#f59e0b','#6366f1','#94a3b8'] }] },
-        options: { maintainAspectRatio: false }
+        data: {
+            labels: Object.keys(stats),
+            datasets: [{ data: Object.values(stats), backgroundColor: ['#22c55e','#ef4444','#f59e0b','#6366f1','#94a3b8'] }]
+        },
+        options: { maintainAspectRatio: false, plugins: { title: { display: true, text: '學生報到狀態' } } }
     });
 }
 
-// --- 編輯 Modal ---
+// --- 編輯功能 ---
 function openEditModal(id) {
     const s = allData.find(x => x["身份證號"] === id);
     if (!s) return;
@@ -92,7 +108,6 @@ function openEditModal(id) {
 
 function closeModal() { document.getElementById('editModal').style.display = 'none'; }
 
-// 綁定按鈕事件
 document.getElementById('closeModalBtn').addEventListener('click', closeModal);
 document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const id = document.getElementById('editId').value;
@@ -108,13 +123,28 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     loadData();
 });
 
+// --- 建立測試學生 ---
+document.getElementById('createTestStudentBtn').addEventListener('click', async () => {
+    const testID = "T123456789";
+    await setDoc(doc(db, "students", testID), {
+        "姓名": "測試員(可重疊報到)",
+        "身份證號": testID,
+        "出生年月日": "2017-01-01",
+        "報到狀態": "未報到",
+        "班級": "",
+        "座號": ""
+    });
+    alert("測試學生已建立！請使用 T123456789 / 2017-01-01 登入測試。");
+    loadData();
+});
+
 // --- 編班比對 ---
 document.getElementById('matchNamesBtn').addEventListener('click', async () => {
     const cls = document.getElementById('inputClassName').value;
     const txt = document.getElementById('rawNameList').value;
     const log = document.getElementById('matchLog');
-    if (!cls || !txt) return alert("請輸入資料");
-    log.innerHTML = "處理中...";
+    if (!cls || !txt) return alert("請輸入完整資料");
+    log.innerHTML = "開始比對...";
     for (let line of txt.split('\n')) {
         const m = line.match(/(\d+)\s+(.+)/);
         if (m) {
@@ -122,14 +152,25 @@ document.getElementById('matchNamesBtn').addEventListener('click', async () => {
             const s = allData.find(x => x["姓名"] === name);
             if (s) {
                 await updateDoc(doc(db, "students", s["身份證號"]), { "班級": cls, "座號": seat });
-                log.innerHTML += `<div class="text-green-600">✅ ${name} OK</div>`;
+                log.innerHTML += `<div class="text-green-600">✅ ${name} (${seat}號)</div>`;
             } else log.innerHTML += `<div class="text-red-500">❌ 找不到 ${name}</div>`;
         }
     }
     loadData();
 });
 
-// --- 匯入功能 ---
+// --- 匯出 Excel ---
+document.getElementById('exportBtn').addEventListener('click', () => {
+    const exportData = allData.filter(s => s["班級"]).map(s => ({
+        "班級": s["班級"], "座號": s["座號"], "姓名": s["姓名"], "電話": s["聯絡電話"] || ""
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "名冊");
+    XLSX.writeFile(wb, "新莊國小編班名冊.xlsx");
+});
+
+// --- 匯入與重置 ---
 document.getElementById('importBtn').addEventListener('click', async () => {
     const file = document.getElementById('excelFile').files[0];
     if (!file) return alert("請選擇檔案");
@@ -139,27 +180,25 @@ document.getElementById('importBtn').addEventListener('click', async () => {
         const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
         for (let row of json) {
             const id = (row['身份證號'] || row['身分證號'] || "").toString().trim().toUpperCase();
-            if (id) await setDoc(doc(db, "students", id), { ...row, "身份證號": id, "報到狀態": row["報到狀態"] || "未報到" }, { merge: true });
+            if (id) await setDoc(doc(db, "students", id), { ...row, "身份證號": id, "報到狀態": "未報到" }, { merge: true });
         }
-        alert("匯入完成");
+        alert("匯入成功");
         loadData();
     };
     reader.readAsArrayBuffer(file);
 });
 
-// --- 重置與刷新 ---
 document.getElementById('resetInput').addEventListener('input', e => {
     const b = document.getElementById('resetBtn');
     b.disabled = e.target.value !== '確認清空';
     b.style.opacity = b.disabled ? '0.2' : '1';
 });
 document.getElementById('resetBtn').addEventListener('click', async () => {
-    if (!confirm("確定刪除所有學生？")) return;
+    if(!confirm("確定清空？")) return;
     const qs = await getDocs(collection(db, "students"));
     for (let d of qs.docs) await deleteDoc(doc(db, "students", d.id));
     location.reload();
 });
-document.getElementById('refreshDataBtn').addEventListener('click', loadData);
 
-// 初次啟動
+document.getElementById('refreshDataBtn').addEventListener('click', loadData);
 loadData();
