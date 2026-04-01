@@ -3,98 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高雄市新莊國小 - 註冊組管理後台</title>
+    <title>新莊國小註冊組 - 管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .sidebar-active { border-left: 4px solid #fff; background-color: rgba(255,255,255,0.1); font-weight: bold; }
-        th { white-space: nowrap; }
+        .sidebar-active { background-color: rgba(255,255,255,0.15); border-left: 4px solid white; font-weight: bold; }
+        .table-container { overflow-x: auto; max-height: 60vh; }
+        th { white-space: nowrap; position: sticky; top: 0; background: #f8fafc; z-index: 10; }
+        td { white-space: nowrap; }
     </style>
 </head>
-<body class="bg-gray-100 flex h-screen overflow-hidden text-gray-800">
+<body class="bg-slate-50 flex h-screen overflow-hidden">
 
-    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl">
-        <div class="p-6 border-b border-slate-700 text-center">
-            <h2 class="text-xl font-bold tracking-wider">註冊組管理後台</h2>
-        </div>
-        <nav class="flex-1 p-4 space-y-2" id="sidebarMenu">
+    <aside class="w-64 bg-slate-800 text-white flex flex-col shadow-xl">
+        <div class="p-6 border-b border-slate-700 text-center font-bold text-xl tracking-widest">管理後台</div>
+        <nav class="flex-1 p-4 space-y-1" id="sidebarMenu">
             <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active transition">📊 報到儀表板</button>
             <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📥 匯入基礎名冊</button>
             <button data-target="exportPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📋 導師分班產出</button>
-            <button data-target="settingsPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 text-red-400 mt-10 transition">⚙️ 系統設定與重置</button>
+            <button data-target="settingsPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 text-red-400 mt-10 transition">⚙️ 系統設定重置</button>
         </nav>
-        <div class="p-4 border-t border-slate-700 text-xs text-slate-500 text-center">新莊國小新生報到系統</div>
     </aside>
 
-    <main class="flex-1 overflow-hidden flex flex-col">
+    <main class="flex-1 flex flex-col overflow-hidden">
         
         <section id="dashboardPanel" class="panel-section block flex flex-col h-full p-6 overflow-y-auto">
-            <div class="flex justify-between items-end mb-4">
-                <h2 class="text-2xl font-bold text-slate-800">📊 報到進度即時統計</h2>
-                <button id="refreshTableBtn" class="text-sm bg-white border px-3 py-1 rounded shadow-sm hover:bg-gray-50">🔄 更新數據</button>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">報到進度統計</h2>
+                <button id="refreshTableBtn" class="bg-white border px-4 py-2 rounded shadow-sm hover:shadow-md transition">🔄 立即更新資料</button>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div class="space-y-4">
-                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
-                        <p class="text-xs font-bold text-gray-400 uppercase">總人數</p>
-                        <p id="statTotal" class="text-3xl font-black">0</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-                        <p class="text-xs font-bold text-gray-400 uppercase">已完成報到</p>
-                        <p id="statDone" class="text-3xl font-black text-green-600">0</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500">
-                        <p class="text-xs font-bold text-gray-400 uppercase">尚未報到</p>
-                        <p id="statPending" class="text-3xl font-black text-red-600">0</p>
+                <div class="bg-white p-6 rounded-xl shadow-sm flex flex-col items-center">
+                    <h3 class="text-gray-500 text-sm mb-4">報到狀態比例</h3>
+                    <div class="h-40 w-40"><canvas id="pieChart"></canvas></div>
+                    <div class="mt-4 flex space-x-4 text-sm">
+                        <span>總數: <b id="statTotal">0</b></span>
+                        <span class="text-green-600">已報到: <b id="statDone">0</b></span>
+                        <span class="text-red-500">未報到: <b id="statPending">0</b></span>
                     </div>
                 </div>
-
-                <div class="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center">
-                    <h3 class="text-sm font-bold mb-2">報到百分比</h3>
-                    <div class="w-full h-48">
-                        <canvas id="pieChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl shadow-sm flex flex-col items-center justify-center">
-                    <h3 class="text-sm font-bold mb-2">本土語選修分布</h3>
-                    <div class="w-full h-48">
-                        <canvas id="barChart"></canvas>
-                    </div>
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
+                    <h3 class="text-gray-500 text-sm mb-4">本土語言選修統計</h3>
+                    <div class="h-48 w-full"><canvas id="barChart"></canvas></div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                <div class="p-4 bg-slate-50 border-b font-bold text-slate-700 flex justify-between">
-                    <span>新生資料速覽</span>
-                    <span id="updateTime" class="text-xs font-normal text-slate-400">尚未更新</span>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
+                <div class="p-4 border-b bg-slate-50 flex justify-between text-sm">
+                    <span class="font-bold">學生名冊明細 (橫向捲動查看更多)</span>
+                    <span id="updateTime" class="text-slate-400 italic">尚未載入</span>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-gray-50 text-gray-500 text-xs">
-                            <tr>
-                                <th class="p-3 border-b">狀態</th>
-                                <th class="p-3 border-b">姓名</th>
-                                <th class="p-3 border-b">身份證號</th>
-                                <th class="p-3 border-b">學生編號</th>
-                                <th class="p-3 border-b">監護人</th>
-                                <th class="p-3 border-b">本土語</th>
-                                <th class="p-3 border-b">報到時間</th>
+                <div class="table-container flex-1">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="p-3">狀態</th><th class="p-3">姓名</th><th class="p-3">身份證號</th><th class="p-3">學生編號</th>
+                                <th class="p-3">本土語</th><th class="p-3">監護人</th><th class="p-3">監護人電話</th>
+                                <th class="p-3">出生日期</th><th class="p-3">地址</th><th class="p-3">報到時間</th>
                             </tr>
                         </thead>
-                        <tbody id="studentTableBody" class="text-sm divide-y">
-                            <tr><td colspan="7" class="p-10 text-center text-gray-400">讀取中...</td></tr>
+                        <tbody id="studentTableBody" class="divide-y">
+                            <tr><td colspan="10" class="p-10 text-center text-slate-400 italic">資料載入中...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <section id="importPanel" class="panel-section hidden p-8">...</section>
-        <section id="exportPanel" class="panel-section hidden p-8">...</section>
-        <section id="settingsPanel" class="panel-section hidden p-8">...</section>
+        <section id="importPanel" class="panel-section hidden p-10">
+            <div class="max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
+                <h2 class="text-xl font-bold mb-6 italic text-slate-700">📥 匯入 Excel 學生名冊</h2>
+                <div class="space-y-4">
+                    <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full border p-3 rounded-lg bg-slate-50">
+                    <button id="importBtn" class="w-full bg-slate-800 text-white font-bold py-4 rounded-xl hover:bg-slate-700 transition shadow-lg">開始執行匯入</button>
+                    <div id="importStatus" class="mt-4 text-center font-bold"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="exportPanel" class="panel-section hidden p-10 text-center">
+            <div class="max-w-md mx-auto bg-white p-10 rounded-2xl shadow-lg">
+                <div class="text-5xl mb-6">📋</div>
+                <h2 class="text-xl font-bold mb-4">產生導師分班總表</h2>
+                <button id="exportBtn" class="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-700 transition w-full shadow-lg">下載完整 Excel</button>
+            </div>
+        </section>
+
+        <section id="settingsPanel" class="panel-section hidden p-10">
+            <div class="max-w-md mx-auto bg-red-50 p-8 rounded-2xl border border-red-200">
+                <h2 class="text-red-700 font-bold mb-4">⚠️ 年度資料重置</h2>
+                <input type="text" id="resetInput" placeholder="輸入「確認清空」" class="w-full p-3 border border-red-300 rounded-lg mb-4">
+                <button id="resetBtn" class="w-full bg-red-600 text-white py-3 rounded-lg font-bold opacity-30" disabled>執行刪除</button>
+            </div>
+        </section>
+
     </main>
 
     <script type="module" src="js/dashboard.js"></script>
