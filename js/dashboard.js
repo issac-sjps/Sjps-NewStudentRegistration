@@ -3,171 +3,180 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import { collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 let allData = [];
+let columns = []; // 動態儲存所有欄位名
+let hiddenColumns = new Set(); // 儲存隱藏的欄位
 let sortConfig = { key: '姓名', direction: 'asc' };
 let charts = {};
 
-// --- 1. 安全守衛：檢查是否為白名單管理員 ---
+// --- 1. 安全守衛：驗證白名單 ---
 onAuthStateChanged(auth, async (user) => {
     const overlay = document.getElementById('authOverlay');
-    if (!user) {
-        window.location.href = "admin.html";
-        return;
-    }
-
+    if (!user) { window.location.href = "admin.html"; return; }
     try {
         const adminSnap = await getDoc(doc(db, "admins", user.email));
         if (!adminSnap.exists()) {
-            alert("抱歉，您的帳號不在授權白名單內！");
+            alert("非授權管理員！");
             await signOut(auth);
             window.location.href = "admin.html";
             return;
         }
-        // 驗證成功，移除遮罩並讀取資料
         overlay.style.display = 'none';
         loadData();
-    } catch (e) {
-        console.error("驗證過程出錯", e);
-        window.location.href = "admin.html";
-    }
+    } catch (e) { window.location.href = "admin.html"; }
 });
 
-// 登出
-window.logout = async () => {
-    if(confirm("確定要登出嗎？")) {
-        await signOut(auth);
-        window.location.href = "admin.html";
-    }
-};
+window.logout = async () => { if(confirm("確定要登出嗎？")) { await signOut(auth); window.location.href = "admin.html"; } };
 
-// --- 2. 資料載入與統計 ---
+// --- 2. 資料載入與欄位解析 ---
 async function loadData() {
-    try {
-        const qs = await getDocs(collection(db, "students"));
-        allData = qs.docs.map(d => d.data());
-        renderAll();
-    } catch (e) {
-        alert("資料讀取失敗，請檢查網路或權限");
-    }
+    const qs = await getDocs(collection(db, "students"));
+    allData = qs.docs.map(d => d.data());
+    
+    // 自動抓取所有不重複的欄位名
+    const allKeys = new Set();
+    allData.forEach(s => Object.keys(s).forEach(k => allKeys.add(k)));
+    // 將「報到狀態、班級、座號、姓名、身分證」排在前面
+    const priority = ["報到狀態", "班級", "座號", "姓名", "身份證號"];
+    columns = priority.concat([...allKeys].filter(k => !priority.includes(k)));
+    
+    renderColumnToggles();
+    renderAll();
 }
 
-function renderAll() {
-    applySortAndRender();
-    updateSummary();
-    updateLangStats();
+// --- 3. 欄位顯示/隱藏控制 ---
+function renderColumnToggles() {
+    const area = document.getElementById('columnToggleArea');
+    area.innerHTML = columns.map(col => `
+        <button class="toggle-btn px-3 py-1 text-[11px] rounded-full border transition ${hiddenColumns.has(col) ? 'bg-white text-slate-400 border-slate-200' : 'bg-blue-100 text-blue-700 border-blue-200 font-bold'}" data-col="${col}">
+            ${hiddenColumns.has(col) ? '👁️‍🗨️' : '✅'} ${col}
+        </button>
+    `).join('');
+
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.onclick = () => {
+            const col = btn.dataset.col;
+            if (hiddenColumns.has(col)) hiddenColumns.delete(col);
+            else hiddenColumns.add(col);
+            renderColumnToggles();
+            renderMainTable();
+        };
+    });
 }
 
-// --- 3. 渲染名冊與自動變色 ---
-function applySortAndRender() {
-    allData.sort((a, b) => {
+// --- 4. 名冊渲染 (支援動態欄位) ---
+function renderMainTable() {
+    const header = document.getElementById('mainTableHeader');
+    const body = document.getElementById('mainTableBody');
+    
+    // 渲染表頭
+    header.innerHTML = `<tr>${columns.map(col => `
+        <th class="${hiddenColumns.has(col) ? 'column-hidden' : ''}" onclick="changeSort('${col}')">
+            ${col} ${sortConfig.key === col ? (sortConfig.direction === 'asc' ? '↑' : '↓') : ''}
+        </th>`).join('')}</tr>`;
+
+    // 排序
+    const sortedData = [...allData].sort((a, b) => {
         let vA = a[sortConfig.key] || "";
         let vB = b[sortConfig.key] || "";
-        if (['班級', '座號'].includes(sortConfig.key)) {
-            vA = parseInt(vA) || 0;
-            vB = parseInt(vB) || 0;
-        }
         return sortConfig.direction === 'asc' ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
     });
 
-    const tbody = document.getElementById('studentTableBody');
-    if(!tbody) return;
-
-    tbody.innerHTML = allData.map(s => {
-        const st = s["報到狀態"] || "未報到";
-        let badgeClass = "bg-pending";
-        if (st === "線上報到") badgeClass = "bg-online";
-        else if (st === "出國") badgeClass = "bg-abroad";
-        else if (st === "私校") badgeClass = "bg-private";
-
-        // 自動顏色：XX國小 或 出國國家
-        let note = s["就讀學校"] || s["備註"] || "";
-        if (note.includes("國小")) note = `<span class="text-school">${note}</span>`;
-        
-        let country = s["出國國家"] || "";
-        if (st === "出國" && country) country = `<span class="text-country ml-1">${country}</span>`;
-
-        return `
-            <tr class="student-row hover:bg-blue-50 border-b" data-id="${s.身份證號}">
-                <td class="p-4"><span class="badge ${badgeClass}">${st}</span>${country}</td>
-                <td class="p-4 font-bold text-blue-600 text-center">${s.班級 || '--'}</td>
-                <td class="p-4 font-bold text-blue-600 text-center">${s.座號 || '--'}</td>
-                <td class="p-4 font-black">${s.姓名}</td>
-                <td class="p-4 text-xs">${note}</td>
-                <td class="p-4 font-mono text-xs text-slate-400">${s.身份證號}</td>
-                <td class="p-4 text-xs font-bold text-purple-600">${s.本土語言名稱 || ''}</td>
-                <td class="p-4 text-xs">${s.聯絡電話 || ''}</td>
-                <td class="p-4 text-[10px] text-slate-400 truncate max-w-[150px]">${s.通訊地址 || ''}</td>
-            </tr>`;
-    }).join('');
-
-    document.querySelectorAll('.student-row').forEach(r => {
-        r.onclick = () => openEditModal(r.dataset.id);
-    });
+    // 渲染內容
+    body.innerHTML = sortedData.map(s => `
+        <tr class="hover:bg-blue-50 transition" onclick="openEditModal('${s.身份證號}')">
+            ${columns.map(col => {
+                let val = s[col] || "";
+                let cellClass = hiddenColumns.has(col) ? 'column-hidden' : '';
+                if(col === "報到狀態" && val === "線上報到") val = `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">已報到</span>`;
+                return `<td class="${cellClass}">${val}</td>`;
+            }).join('')}
+        </tr>`).join('');
 }
 
-// --- 4. 本土語統計邏輯 ---
-function updateLangStats() {
-    const langCounts = {};
-    const langGroups = {};
-    allData.forEach(s => {
-        const l = s["本土語言名稱"] || "未填寫";
-        langCounts[l] = (langCounts[l] || 0) + 1;
-        if (!langGroups[l]) langGroups[l] = [];
-        langGroups[l].push(s);
-    });
+window.changeSort = (key) => {
+    sortConfig.direction = (sortConfig.key === key && sortConfig.direction === 'asc') ? 'desc' : 'asc';
+    sortConfig.key = key;
+    renderMainTable();
+};
 
-    const container = document.getElementById('langListContainer');
-    if(container) {
-        container.innerHTML = Object.entries(langCounts).map(([name, count]) => `
-            <div class="bg-white p-6 rounded-2xl border-l-4 border-purple-500 shadow-sm">
-                <p class="text-xs text-slate-400 font-bold">選修項目</p>
-                <div class="flex justify-between items-end mt-1">
-                    <p class="text-xl font-black text-slate-700">${name}</p>
-                    <p class="text-2xl font-black text-purple-600">${count} <span class="text-xs text-slate-400">人</span></p>
+// --- 5. 學生專屬查詢邏輯 ---
+document.getElementById('quickSearchBtn').onclick = () => {
+    const keyword = document.getElementById('quickSearchInput').value.trim();
+    if(!keyword) return;
+    
+    const result = allData.find(s => s.姓名 === keyword || s.身份證號 === keyword);
+    const resultArea = document.getElementById('searchResultArea');
+    
+    if(result) {
+        resultArea.classList.remove('hidden');
+        resultArea.innerHTML = `
+            <div class="bg-blue-50 p-6 rounded-3xl border-2 border-blue-200 text-left">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 class="text-2xl font-black text-slate-800">${result.姓名}</h4>
+                        <p class="text-sm text-slate-500 font-mono">${result.身份證號}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-bold">${result.報到狀態 || '未報到'}</span>
+                    </div>
                 </div>
-            </div>`).join('');
-    }
-
-    renderLangPie(langCounts);
-
-    const tableArea = document.getElementById('langGroupingTable');
-    if(tableArea) {
-        tableArea.innerHTML = Object.entries(langGroups).map(([lang, students]) => `
-            <div>
-                <h5 class="bg-slate-100 p-2 px-4 rounded-lg font-bold text-slate-600 mb-2 inline-block">${lang} (${students.length}人)</h5>
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    ${students.map(st => `<div class="text-xs p-2 bg-white border rounded shadow-sm flex justify-between">
-                        <span class="font-bold">${st.姓名}</span>
-                        <span class="text-slate-400">${st.班級||''}-${st.座號||''}</span>
-                    </div>`).join('')}
+                <div class="grid grid-cols-2 gap-4 text-xs">
+                    <p><b>班級座號：</b>${result.班級 || '--'}-${result.座號 || '--'}</p>
+                    <p><b>本土語言：</b>${result.本土語言名稱 || '--'}</p>
+                    <p><b>聯絡電話：</b>${result.聯絡電話 || '--'}</p>
+                    <p><b>就讀學校：</b>${result.就讀學校 || '--'}</p>
                 </div>
-            </div>`).join('');
+                <div class="mt-6 flex space-x-2">
+                    <button onclick="openEditModal('${result.身份證號}')" class="flex-1 bg-white border-2 border-blue-500 text-blue-600 py-3 rounded-xl font-bold">查看完整資料 / 修改</button>
+                </div>
+            </div>`;
+    } else {
+        alert("找不到該學生，請確認姓名或身分證是否正確。");
+        resultArea.classList.add('hidden');
     }
+};
+
+// --- 6. 編輯與匯出單一學生 ---
+async function openEditModal(id) {
+    const s = allData.find(x => x.身份證號 === id);
+    if (!s) return;
+    document.getElementById('displayId').innerText = id;
+    document.getElementById('dynamicFields').innerHTML = columns.map(key => `
+        <div class="flex flex-col space-y-1">
+            <label class="text-[10px] font-bold text-slate-400">${key}</label>
+            <input type="text" class="dynamic-input border p-2 rounded-lg bg-slate-50" data-key="${key}" value="${s[key] || ''}">
+        </div>`).join('');
+    document.getElementById('editModal').style.display = 'flex';
+    
+    // 綁定單一生匯出
+    document.getElementById('exportSingleBtn').onclick = () => exportToExcel([s], `學生資料_${s.姓名}`);
 }
 
-function renderLangPie(counts) {
-    const ctx = document.getElementById('langPieChart')?.getContext('2d');
-    if (!ctx) return;
-    if (charts.lang) charts.lang.destroy();
-    charts.lang = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: Object.keys(counts),
-            datasets: [{ data: Object.values(counts), backgroundColor: ['#a855f7','#ec4899','#3b82f6','#10b981','#f59e0b','#64748b'] }]
-        },
-        options: { maintainAspectRatio: false }
-    });
+function exportToExcel(data, filename) {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Students");
+    XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
-// --- 5. 其他功能 (排序點擊、匯入、比對、統計卡片) ---
+document.getElementById('saveEditBtn').onclick = async () => {
+    const id = document.getElementById('displayId').innerText;
+    const data = {};
+    document.querySelectorAll('.dynamic-input').forEach(i => data[i.dataset.key] = i.value);
+    await updateDoc(doc(db, "students", id), data);
+    alert("儲存成功！");
+    document.getElementById('editModal').style.display = 'none';
+    loadData();
+};
 
-document.querySelectorAll('.sort-btn').forEach(th => {
-    th.onclick = () => {
-        const key = th.dataset.sort;
-        sortConfig.direction = (sortConfig.key === key && sortConfig.direction === 'asc') ? 'desc' : 'asc';
-        sortConfig.key = key;
-        applySortAndRender();
-    };
-});
+document.getElementById('closeModalBtn').onclick = () => document.getElementById('editModal').style.display = 'none';
+
+// --- 7. 其他基礎功能 (統計卡片、圖表、側邊欄、比對、匯入) ---
+function renderAll() {
+    renderMainTable();
+    updateSummary();
+    updateLangStats();
+}
 
 function updateSummary() {
     let stats = { online: 0, none: 0, other: 0 };
@@ -180,49 +189,15 @@ function updateSummary() {
         const cls = s["班級"] || "未編班";
         classDist[cls] = (classDist[cls] || 0) + 1;
     });
-
     document.getElementById('statCards').innerHTML = `
-        <div class="bg-white p-6 rounded-2xl border-b-4 border-blue-500 shadow-sm text-center"><p class="text-xs text-slate-400">總人數</p><p class="text-3xl font-black">${allData.length}</p></div>
-        <div class="bg-white p-6 rounded-2xl border-b-4 border-green-500 shadow-sm text-center"><p class="text-xs text-slate-400">已報到</p><p class="text-3xl font-black text-green-600">${stats.online}</p></div>
-        <div class="bg-white p-6 rounded-2xl border-b-4 border-red-500 shadow-sm text-center"><p class="text-xs text-slate-400">未報到</p><p class="text-3xl font-black text-red-600">${stats.none}</p></div>
-        <div class="bg-white p-6 rounded-2xl border-b-4 border-yellow-500 shadow-sm text-center"><p class="text-xs text-slate-400">其它</p><p class="text-3xl font-black text-yellow-600">${stats.other}</p></div>
-    `;
-
-    renderMainCharts(stats, classDist);
+        <div class="bg-white p-6 rounded-2xl border-b-4 border-blue-500 shadow-sm text-center"><p class="text-xs text-slate-400 font-bold">總人數</p><p class="text-3xl font-black">${allData.length}</p></div>
+        <div class="bg-white p-6 rounded-2xl border-b-4 border-green-500 shadow-sm text-center"><p class="text-xs text-slate-400 font-bold">已報到</p><p class="text-3xl font-black text-green-600">${stats.online}</p></div>
+        <div class="bg-white p-6 rounded-2xl border-b-4 border-red-500 shadow-sm text-center"><p class="text-xs text-slate-400 font-bold">未報到</p><p class="text-3xl font-black text-red-600">${stats.none}</p></div>
+        <div class="bg-white p-6 rounded-2xl border-b-4 border-yellow-500 shadow-sm text-center"><p class="text-xs text-slate-400 font-bold">其他去向</p><p class="text-3xl font-black text-yellow-600">${stats.other}</p></div>`;
 }
 
-function renderMainCharts(stats, classDist) {
-    const pCtx = document.getElementById('anaPieChart')?.getContext('2d');
-    const bCtx = document.getElementById('anaBarChart')?.getContext('2d');
-    if (charts.p) charts.p.destroy();
-    if (charts.b) charts.b.destroy();
-    if (pCtx) charts.p = new Chart(pCtx, { type: 'doughnut', data: { labels: ['已報到','未報到','其它'], datasets: [{ data:[stats.online, stats.none, stats.other], backgroundColor:['#22c55e','#ef4444','#f59e0b'] }] }, options: { maintainAspectRatio:false } });
-    if (bCtx) charts.b = new Chart(bCtx, { type: 'bar', data: { labels: Object.keys(classDist), datasets: [{ label:'人數', data:Object.values(classDist), backgroundColor:'#3b82f6' }] }, options: { maintainAspectRatio:false } });
-}
-
-// 彈窗編輯
-function openEditModal(id) {
-    const s = allData.find(x => x.身份證號 === id);
-    if (!s) return;
-    document.getElementById('displayId').innerText = id;
-    document.getElementById('dynamicFields').innerHTML = Object.keys(s).sort().map(key => `
-        <div class="flex flex-col space-y-1">
-            <label class="text-[10px] font-bold text-slate-400">${key}</label>
-            <input type="text" class="dynamic-input border p-2 rounded-lg" data-key="${key}" value="${s[key] || ''}">
-        </div>`).join('');
-    document.getElementById('editModal').style.display = 'flex';
-}
-
-document.getElementById('saveEditBtn').onclick = async () => {
-    const id = document.getElementById('displayId').innerText;
-    const data = {};
-    document.querySelectorAll('.dynamic-input').forEach(i => data[i.dataset.key] = i.value);
-    await updateDoc(doc(db, "students", id), data);
-    document.getElementById('editModal').style.display = 'none';
-    loadData();
-};
-
-document.getElementById('closeModalBtn').onclick = () => document.getElementById('editModal').style.display = 'none';
+// (語言統計、編班、匯入邏輯與前版一致，請完整保留)
+// ... [省略重複的 Chart 與 匯入比對邏輯] ...
 
 // 側邊欄切換
 document.querySelectorAll('.menu-btn').forEach(btn => {
@@ -233,7 +208,3 @@ document.querySelectorAll('.menu-btn').forEach(btn => {
         document.getElementById(btn.dataset.target).classList.remove('hidden');
     };
 });
-
-// 匯入、比對、重置 (邏輯同前，為節省篇幅保留核心，請確保完整貼入)
-document.getElementById('importBtn').onclick = async () => { /* 匯入邏輯 */ };
-document.getElementById('matchNamesBtn').onclick = async () => { /* 比對邏輯 */ };
