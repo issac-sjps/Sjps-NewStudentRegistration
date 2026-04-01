@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新莊國小註冊組 - 數據分析後台</title>
+    <title>新莊國小註冊組 - 全功能管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .sidebar-active { background: #334155; border-left: 4px solid #60a5fa; font-weight: bold; }
         .table-scroll { overflow-x: auto; max-height: 500px; }
-        th { position: sticky; top: 0; background: #f1f5f9; z-index: 10; white-space: nowrap; }
+        th { position: sticky; top: 0; background: #f8fafc; z-index: 10; white-space: nowrap; }
         td { white-space: nowrap; }
     </style>
 </head>
@@ -20,8 +20,9 @@
         <div class="p-6 border-b border-slate-700 font-black text-xl tracking-tighter">新莊註冊組後台</div>
         <nav class="flex-1 p-4 space-y-2" id="sidebarMenu">
             <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active transition">📊 報到儀表板</button>
-            <button data-target="analysisPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📈 進階數據分析</button>
+            <button data-target="analysisPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📈 數據統計分析</button>
             <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📥 匯入基礎名冊</button>
+            <button data-target="classPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">✏️ 編班作業編輯</button>
             <button data-target="exportPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📋 導師分班產出</button>
             <button data-target="settingsPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 text-red-400 mt-10 transition">⚙️ 系統設定重置</button>
         </nav>
@@ -32,9 +33,8 @@
         <section id="dashboardPanel" class="panel-section block h-full p-8 overflow-y-auto">
             <div class="flex justify-between items-center mb-8">
                 <h2 class="text-3xl font-black">報到儀表板</h2>
-                <span id="updateTime" class="text-slate-400 text-sm italic"></span>
+                <button id="refreshDataBtn" class="bg-white border px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50">🔄 刷新數據</button>
             </div>
-            
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-500">
                     <p class="text-slate-400 text-xs font-bold uppercase">總人數</p>
@@ -49,15 +49,11 @@
                     <p id="statPending" class="text-4xl font-black text-red-600">0</p>
                 </div>
             </div>
-
             <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
-                <div class="p-4 border-b font-bold bg-slate-50">即時報到名單</div>
                 <div class="table-scroll">
                     <table class="w-full text-left text-sm">
-                        <thead>
-                            <tr class="text-slate-500 uppercase text-xs">
-                                <th class="p-4 border-b">狀態</th><th class="p-4 border-b">姓名</th><th class="p-4 border-b">身分證號</th><th class="p-4 border-b">本土語</th><th class="p-4 border-b">電話</th>
-                            </tr>
+                        <thead class="bg-slate-50">
+                            <tr><th class="p-4 border-b">狀態</th><th class="p-4 border-b">班級</th><th class="p-4 border-b">姓名</th><th class="p-4 border-b">身分證號</th><th class="p-4 border-b">電話</th></tr>
                         </thead>
                         <tbody id="quickTableBody" class="divide-y"></tbody>
                     </table>
@@ -67,68 +63,47 @@
 
         <section id="analysisPanel" class="panel-section hidden h-full p-8 overflow-y-auto">
             <h2 class="text-3xl font-black mb-8">📈 數據統計分析</h2>
-            
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                <div class="bg-white p-8 rounded-3xl shadow-sm border">
-                    <h3 class="text-center font-bold text-slate-500 mb-6 uppercase tracking-widest">報到狀態細分</h3>
-                    <div class="h-64"><canvas id="anaPieChart"></canvas></div>
-                </div>
-                <div class="bg-white p-8 rounded-3xl shadow-sm border">
-                    <h3 class="text-center font-bold text-slate-500 mb-6 uppercase tracking-widest">本土語選修分布</h3>
-                    <div class="h-64"><canvas id="anaBarChart"></canvas></div>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-2xl shadow-sm border">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center space-x-4">
-                        <span class="font-bold">篩選狀態：</span>
-                        <select id="statusFilter" class="border-2 border-slate-200 p-2 rounded-xl focus:border-blue-500 outline-none">
-                            <option value="全部">全部顯示</option>
-                            <option value="線上報到">線上報到</option>
-                            <option value="未報到">未報到</option>
-                            <option value="美國">出國 (美國)</option>
-                            <option value="越南">出國 (越南)</option>
-                        </select>
-                    </div>
-                    <div class="text-slate-500">篩選結果：<span id="filteredCount" class="font-bold text-blue-600">0</span> 人</div>
-                </div>
-                <div class="table-scroll border rounded-xl">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-800 text-white">
-                            <tr>
-                                <th class="p-3">姓名</th><th class="p-3">學生編號</th><th class="p-3">身份證號</th><th class="p-3">本土語名稱</th><th class="p-3">聯絡電話</th><th class="p-3">地址</th>
-                            </tr>
-                        </thead>
-                        <tbody id="analysisTableBody" class="divide-y"></tbody>
-                    </table>
-                </div>
+                <div class="bg-white p-8 rounded-3xl shadow-sm border h-80"><canvas id="anaPieChart"></canvas></div>
+                <div class="bg-white p-8 rounded-3xl shadow-sm border h-80"><canvas id="anaBarChart"></canvas></div>
             </div>
         </section>
 
         <section id="importPanel" class="panel-section hidden p-10">
             <div class="max-w-xl mx-auto bg-white p-10 rounded-3xl shadow-2xl border">
-                <h2 class="text-2xl font-bold mb-6">📥 匯入基礎名冊</h2>
+                <h2 class="text-2xl font-bold mb-4">📥 第一步：匯入基礎名冊</h2>
+                <p class="text-slate-500 mb-6">請上傳包含「姓名、身分證號」的初始 Excel 檔案。</p>
                 <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full mb-6 border-2 border-dashed p-10 rounded-2xl">
-                <button id="importBtn" class="w-full bg-slate-800 text-white font-bold py-5 rounded-2xl hover:bg-slate-700 shadow-xl transition">執行匯入</button>
-                <div id="importStatus" class="mt-4 text-center"></div>
+                <button id="importBtn" class="w-full bg-slate-800 text-white font-bold py-5 rounded-2xl shadow-xl hover:bg-slate-700">執行匯入</button>
+            </div>
+        </section>
+
+        <section id="classPanel" class="panel-section hidden p-10">
+            <div class="max-w-2xl mx-auto bg-white p-10 rounded-3xl shadow-2xl border">
+                <h2 class="text-2xl font-bold mb-4">✏️ 第二步：上傳編班名單</h2>
+                <div class="bg-blue-50 p-4 rounded-xl text-blue-700 text-sm mb-6">
+                    <strong>說明：</strong> 請準備一份 Excel，只需包含兩欄：<b>「身分證號」</b>與<b>「班級」</b>(例如：一年一班)。系統將自動對應並更新學生資料。
+                </div>
+                <input type="file" id="classExcelFile" accept=".xlsx, .xls" class="w-full mb-6 border-2 border-dashed p-10 rounded-2xl">
+                <button id="uploadClassBtn" class="w-full bg-indigo-600 text-white font-bold py-5 rounded-2xl shadow-xl hover:bg-indigo-700 transition">批次更新班級資料</button>
+                <div id="classStatus" class="mt-4 text-center font-bold"></div>
             </div>
         </section>
 
         <section id="exportPanel" class="panel-section hidden p-10 text-center">
-            <div class="max-w-md mx-auto bg-white p-12 rounded-3xl shadow-xl">
+            <div class="max-w-md mx-auto bg-white p-12 rounded-3xl shadow-xl border">
                 <div class="text-6xl mb-6">📋</div>
-                <h2 class="text-2xl font-bold mb-4">導師分班產出</h2>
-                <button id="exportBtn" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-bold hover:bg-blue-700 shadow-lg">下載完整 Excel 表格</button>
+                <h2 class="text-2xl font-bold mb-4">第三步：產出導師名冊</h2>
+                <p class="text-slate-500 mb-8">系統將根據已匯入的班級資訊，產出完整的 Excel 總表。</p>
+                <button id="exportBtn" class="w-full bg-green-600 text-white py-5 rounded-2xl font-bold hover:bg-green-700 shadow-lg mb-4">下載完整名冊 (含班級)</button>
             </div>
         </section>
 
-        <section id="settingsPanel" class="panel-section hidden p-10">
+        <section id="settingsPanel" class="panel-section hidden p-10 text-center">
             <div class="max-w-md mx-auto bg-red-50 p-10 rounded-3xl border border-red-200">
-                <h2 class="text-red-600 font-bold mb-6">⚙️ 系統年度重置</h2>
-                <p class="text-sm text-red-400 mb-6">請注意：此操作將永久刪除雲端所有學生資料。</p>
-                <input type="text" id="resetInput" placeholder="輸入「確認清空」" class="w-full p-4 border-2 border-red-200 rounded-xl mb-4 text-center">
-                <button id="resetBtn" class="w-full bg-red-600 text-white py-4 rounded-xl font-bold opacity-20 transition" disabled>確認刪除</button>
+                <h2 class="text-red-600 font-bold mb-4 text-xl">⚠️ 年度重置作業</h2>
+                <input type="text" id="resetInput" placeholder="請輸入「確認清空」" class="w-full p-4 border-2 rounded-xl mb-4 text-center outline-none focus:border-red-500">
+                <button id="resetBtn" class="w-full bg-red-600 text-white py-4 rounded-xl font-bold opacity-20" disabled>執行刪除</button>
             </div>
         </section>
 
