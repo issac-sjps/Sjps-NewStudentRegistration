@@ -3,96 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新莊國小 - 114學年度新生線上報到系統</title>
+    <title>新莊國小 - 新生報到系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); }
-        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
-        /* 連線狀態燈 */
-        .lamp { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .lamp-green { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
-        .lamp-red { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-        .lamp-gray { background: #94a3b8; }
+        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-    <div class="fixed top-4 right-4 text-[10px] flex items-center text-slate-500">
-        <div id="connStatusLamp" class="lamp lamp-gray"></div>
-        系統連線狀態: <span id="connText" class="ml-1">檢查中</span>
-    </div>
-
-    <div id="loginStep" class="glass-card w-full max-w-md p-8 rounded-3xl shadow-2xl">
-        <div class="text-center mb-8">
-            <h1 class="text-2xl font-black text-slate-800">新莊國小新生報到</h1>
-            <p class="text-slate-500 text-sm mt-2">請輸入新生資料以進行驗證</p>
-        </div>
-
+    <div id="loginStep" class="glass w-full max-w-md p-8 rounded-3xl shadow-2xl">
+        <h1 class="text-2xl font-black text-center text-slate-800 mb-8">新生報到登入</h1>
         <div class="space-y-6">
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-2">新生身分證號</label>
-                <input type="text" id="idNumber" placeholder="例如: A123456789" 
-                    class="w-full px-4 py-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition uppercase text-lg font-mono">
+                <input type="text" id="idNumber" placeholder="例如: A123456789" class="w-full px-4 py-4 rounded-xl border-2 uppercase font-mono">
             </div>
             <div>
                 <label class="block text-sm font-bold text-slate-700 mb-2">出生年月日</label>
-                <input type="date" id="birthday" 
-                    class="w-full px-4 py-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition text-lg">
-                <p class="text-[10px] text-slate-400 mt-1">* 格式範例：2017/01/01</p>
+                <input type="date" id="birthday" class="w-full px-4 py-4 rounded-xl border-2">
             </div>
-            <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all transform active:scale-95">
-                開始報到驗證
-            </button>
+            <button id="loginBtn" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg">進入報到問卷</button>
         </div>
     </div>
 
-    <div id="surveyStep" class="hidden glass-card w-full max-w-2xl p-8 rounded-3xl shadow-2xl my-10">
-        <div class="border-b pb-4 mb-6">
-            <h2 class="text-xl font-bold text-slate-800">您好，<span id="displayName" class="text-blue-600">--</span> 同學</h2>
-            <p class="text-sm text-slate-500">請完成以下入學調查資訊</p>
-        </div>
-
+    <div id="surveyStep" class="hidden glass w-full max-w-2xl p-8 rounded-3xl shadow-2xl my-10">
+        <h2 class="text-xl font-bold mb-6 border-b pb-4"><span id="displayName" class="text-blue-600">--</span> 同學，您好</h2>
         <form id="enrollForm" class="space-y-8">
             <input type="hidden" id="studentId">
-
             <section>
-                <label class="block font-black text-slate-800 mb-3">1. 本土語文選修課程</label>
+                <label class="block font-black mb-3 text-slate-700">1. 本土語文選修</label>
                 <div class="grid grid-cols-2 gap-3">
-                    <label class="flex items-center p-4 border rounded-xl cursor-pointer hover:bg-blue-50 transition">
-                        <input type="radio" name="lang" value="閩南語" class="mr-2" required> 閩南語
-                    </label>
-                    <label class="flex items-center p-4 border rounded-xl cursor-pointer hover:bg-blue-50 transition">
-                        <input type="radio" name="lang" value="客家語" class="mr-2"> 客家語
-                    </label>
-                    <label class="flex items-center p-4 border rounded-xl cursor-pointer hover:bg-blue-50 transition">
-                        <input type="radio" name="lang" value="原住民族語" class="mr-2"> 原住民族語
-                    </label>
-                    <label class="flex items-center p-4 border rounded-xl cursor-pointer hover:bg-blue-50 transition">
-                        <input type="radio" name="lang" value="越南語" class="mr-2"> 越南語
-                    </label>
+                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="閩南語" class="mr-2" required> 閩南語</label>
+                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="客家語" class="mr-2"> 客家語</label>
+                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="原民語" class="mr-2"> 原民語</label>
+                    <label class="p-4 border rounded-xl flex items-center"><input type="radio" name="lang" value="新住民語" class="mr-2"> 新住民語</label>
                 </div>
             </section>
-
             <section>
-                <label class="block font-black text-slate-800 mb-3">2. 聯絡資訊</label>
-                <div class="space-y-4">
-                    <input type="tel" id="phone" placeholder="監護人手機號碼" required
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
-                    <input type="text" id="address" placeholder="通訊地址" required
-                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
-                </div>
+                <label class="block font-black mb-3 text-slate-700">2. 聯絡資訊</label>
+                <input type="tel" id="phone" placeholder="監護人手機" required class="w-full px-4 py-3 border rounded-xl mb-3">
+                <input type="text" id="address" placeholder="通訊地址" required class="w-full px-4 py-3 border rounded-xl">
             </section>
-
-            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-2xl shadow-lg transition-all">
-                確認送出報到資料
-            </button>
+            <button type="submit" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg">確認送出報到</button>
         </form>
     </div>
 
-    <div id="successStep" class="hidden glass-card w-full max-w-md p-10 rounded-3xl shadow-2xl text-center">
-        <div class="text-6xl mb-4">🎉</div>
-        <h2 class="text-2xl font-black text-slate-800 mb-2">報到成功！</h2>
-        <p class="text-slate-500 mb-6">資料已傳送至註冊組，請靜候編班結果公告。</p>
+    <div id="successStep" class="hidden glass w-full max-w-md p-10 rounded-3xl shadow-2xl text-center">
+        <div class="text-6xl mb-4">✅</div>
+        <h2 class="text-2xl font-black mb-4">報到資料已送出</h2>
         <button onclick="location.reload()" class="text-blue-600 font-bold underline">回首頁</button>
     </div>
 
@@ -100,86 +59,43 @@
         import { db } from './js/firebase-config.js';
         import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // 測試帳號設定
         const TEST_ID = "T123456789";
 
-        // 檢查連線
-        async function checkConn() {
-            try {
-                await getDoc(doc(db, "students", "dummy"));
-                document.getElementById('connStatusLamp').className = "lamp lamp-green";
-                document.getElementById('connText').innerText = "雲端服務正常";
-            } catch(e) {
-                document.getElementById('connStatusLamp').className = "lamp lamp-red";
-                document.getElementById('connText').innerText = "連線異常";
-            }
-        }
-        checkConn();
-
-        // 登入邏輯
         document.getElementById('loginBtn').addEventListener('click', async () => {
             const id = document.getElementById('idNumber').value.trim().toUpperCase();
             const bday = document.getElementById('birthday').value;
+            if(!id || !bday) return alert("請輸入完整資料");
 
-            if(!id || !bday) return alert("請輸入完整身分證與生日");
+            const snap = await getDoc(doc(db, "students", id));
+            if (!snap.exists()) return alert("資料庫無此學生");
 
-            try {
-                const snap = await getDoc(doc(db, "students", id));
-                
-                if (!snap.exists()) {
-                    return alert("資料庫查無此學籍，請洽註冊組(分機112)。");
-                }
-
-                const data = snap.data();
-
-                // 生日驗證 (測試帳號略過嚴格檢查或統一 2017-01-01)
-                if (data["出生年月日"] !== bday) {
-                    return alert("生日驗證錯誤，請重新輸入。");
-                }
-
-                // 報到狀態判斷
-                if (data["報到狀態"] === "線上報到" && id !== TEST_ID) {
-                    alert("您先前已完成線上報到，不需重複提交。");
-                    return;
-                }
-
-                // 進入問卷
-                document.getElementById('loginStep').classList.add('hidden');
-                document.getElementById('surveyStep').classList.remove('hidden');
-                document.getElementById('displayName').innerText = data["姓名"];
-                document.getElementById('studentId').value = id;
-
-            } catch(e) {
-                alert("系統錯誤，請檢查網路連線");
-                console.error(e);
+            const data = snap.data();
+            if (data["出生年月日"] !== bday) return alert("生日不符");
+            
+            // 測試帳號不擋重複報到
+            if (data["報到狀態"] === "線上報到" && id !== TEST_ID) {
+                return alert("您先前已報到完成！");
             }
+
+            document.getElementById('loginStep').classList.add('hidden');
+            document.getElementById('surveyStep').classList.remove('hidden');
+            document.getElementById('displayName').innerText = data["姓名"];
+            document.getElementById('studentId').value = id;
         });
 
-        // 提交表單
         document.getElementById('enrollForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('studentId').value;
-            const lang = document.querySelector('input[name="lang"]:checked').value;
-            const phone = document.getElementById('phone').value;
-            const addr = document.getElementById('address').value;
-
-            try {
-                // 更新 Firebase 資料
-                await updateDoc(doc(db, "students", id), {
-                    "報到狀態": "線上報到",
-                    "本土語言名稱": lang,
-                    "聯絡電話": phone,
-                    "通訊地址": addr,
-                    "報到時間": new Date().toLocaleString()
-                });
-
-                document.getElementById('surveyStep').classList.add('hidden');
-                document.getElementById('successStep').classList.remove('hidden');
-
-            } catch(e) {
-                alert("送出失敗，請稍後再試");
-                console.error(e);
-            }
+            const updateData = {
+                "報到狀態": "線上報到",
+                "本土語言名稱": document.querySelector('input[name="lang"]:checked').value,
+                "聯絡電話": document.getElementById('phone').value,
+                "通訊地址": document.getElementById('address').value,
+                "報到時間": new Date().toLocaleString()
+            };
+            await updateDoc(doc(db, "students", id), updateData);
+            document.getElementById('surveyStep').classList.add('hidden');
+            document.getElementById('successStep').classList.remove('hidden');
         });
     </script>
 </body>
