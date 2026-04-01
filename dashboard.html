@@ -10,18 +10,27 @@
     <style>
         .sidebar-active { background: #334155; border-left: 4px solid #60a5fa; font-weight: bold; }
         .table-container { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 250px); border-radius: 1rem; }
-        table { min-width: 1400px; border-collapse: separate; border-spacing: 0; }
+        table { min-width: 1600px; border-collapse: separate; border-spacing: 0; }
         th { cursor: pointer; position: sticky; top: 0; z-index: 20; background: #f8fafc; white-space: nowrap; border-bottom: 2px solid #e2e8f0; font-size: 13px; }
         #editModal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
         .modal-content { max-height: 85vh; overflow-y: auto; width: 95%; max-width: 1000px; }
         .badge { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: bold; border: 1px solid transparent; }
         .bg-online { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
         .bg-pending { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+        .bg-abroad { background: #fef9c3; color: #854d0e; border-color: #fef08a; }
+        .bg-private { background: #fae8ff; color: #86198f; border-color: #f5d0fe; }
         .text-school { color: #2563eb; font-weight: 800; text-decoration: underline; }
-        .lang-card { border-left: 4px solid #8b5cf6; }
+        .text-country { color: #dc2626; font-weight: 800; background: #fee2e2; padding: 2px 4px; border-radius: 4px; }
+        /* 安全遮罩 */
+        #authOverlay { position: fixed; inset: 0; background: #0f172a; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
     </style>
 </head>
 <body class="bg-slate-100 flex h-screen overflow-hidden text-slate-900">
+
+    <div id="authOverlay">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+        <p class="text-xl font-black tracking-widest">🔒 安全驗證中...</p>
+    </div>
 
     <div id="editModal">
         <div class="bg-white rounded-3xl p-8 shadow-2xl modal-content" onclick="event.stopPropagation()">
@@ -38,68 +47,107 @@
     </div>
 
     <aside class="w-64 bg-slate-800 text-slate-100 flex flex-col shadow-2xl shrink-0">
-        <div class="p-6 border-b border-slate-700 font-black text-xl tracking-widest text-center">🏫 新莊國小</div>
+        <div class="p-6 border-b border-slate-700 font-black text-xl tracking-widest text-center">🏫 新莊國小管理</div>
         <nav class="flex-1 px-4 space-y-1 text-sm mt-4">
-            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active">📊 數據統計</button>
-            <button data-target="langPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">🗣️ 本土語言選修</button>
-            <button data-target="managePanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">🗂️ 學生名冊</button>
-            <button data-target="classPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">✏️ 編班比對</button>
-            <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700">📥 匯入/重置</button>
+            <button data-target="dashboardPanel" class="menu-btn w-full text-left p-3 rounded sidebar-active transition">📊 數據統計概況</button>
+            <button data-target="langPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">🗣️ 本土語言選修</button>
+            <button data-target="managePanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">🗂️ 學生名冊管理</button>
+            <button data-target="classPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">✏️ 編班自動比對</button>
+            <button data-target="importPanel" class="menu-btn w-full text-left p-3 rounded hover:bg-slate-700 transition">📥 數據匯入重置</button>
             
-            <div class="pt-6 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2">外部連結</div>
-            <a href="index.html" class="block p-3 rounded hover:bg-blue-900 text-blue-300">🏠 前往報到首頁</a>
+            <div class="pt-6 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2">外部導航</div>
+            <a href="index.html" class="block p-3 rounded hover:bg-blue-900 text-blue-300 transition">🏠 返回報到首頁</a>
+            <a href="admin.html" class="block p-3 rounded hover:bg-slate-700 text-slate-400 transition">⚙️ 管理員白名單</a>
+            <button onclick="logout()" class="w-full text-left p-3 rounded hover:bg-red-900 text-red-400 transition">🚪 安全登出</button>
         </nav>
     </aside>
 
     <main class="flex-1 flex flex-col overflow-hidden">
         
         <section id="dashboardPanel" class="panel-section block h-full p-8 overflow-y-auto">
-            <h2 class="text-3xl font-black mb-6">報到數據概況</h2>
-            <div id="statCards" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                </div>
+            <h2 class="text-3xl font-black mb-6">報到數據統計</h2>
+            <div id="statCards" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8"></div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-96">
                 <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-col">
-                    <h4 class="font-bold mb-4">報到比例</h4>
+                    <h4 class="font-bold mb-4">報到比例圖</h4>
                     <div class="flex-1"><canvas id="anaPieChart"></canvas></div>
                 </div>
                 <div class="bg-white p-6 rounded-2xl border shadow-sm flex flex-col">
-                    <h4 class="font-bold mb-4">班級人數</h4>
+                    <h4 class="font-bold mb-4">各班人數分佈</h4>
                     <div class="flex-1"><canvas id="anaBarChart"></canvas></div>
                 </div>
             </div>
         </section>
 
         <section id="langPanel" class="panel-section hidden h-full p-8 overflow-y-auto">
-            <h2 class="text-3xl font-black mb-6">🗣️ 本土語言選修統計</h2>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="bg-white p-6 rounded-2xl border shadow-sm h-96 flex flex-col">
-                    <h4 class="font-bold mb-4">語言類別比例</h4>
+            <h2 class="text-3xl font-black mb-6">🗣️ 本土語言統計</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl border shadow-sm h-80 flex flex-col">
+                    <h4 class="font-bold mb-4">選修類別比例</h4>
                     <div class="flex-1"><canvas id="langPieChart"></canvas></div>
                 </div>
-                
-                <div id="langListContainer" class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    </div>
+                <div id="langListContainer" class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
-
-            <div class="mt-8 bg-white rounded-2xl border shadow-sm p-6">
-                <h4 class="font-bold mb-4">語言選修名冊 (按類別分組)</h4>
-                <div id="langGroupingTable" class="space-y-6">
-                    </div>
+            <div class="bg-white rounded-2xl border shadow-sm p-6">
+                <h4 class="font-bold mb-4">語言選修分組名冊</h4>
+                <div id="langGroupingTable" class="space-y-6"></div>
             </div>
         </section>
 
         <section id="managePanel" class="panel-section hidden h-full p-8 flex flex-col">
-             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-black">學生名冊</h2>
-                <input type="text" id="searchInput" placeholder="搜尋..." class="border px-4 py-2 rounded-xl text-sm w-64">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-black">學生名冊 (可橫向滑動)</h2>
+                <input type="text" id="searchInput" placeholder="搜尋姓名/身分證..." class="border px-4 py-2 rounded-xl text-sm w-64 shadow-inner">
             </div>
             <div class="bg-white flex-1 rounded-2xl shadow-sm border table-container">
-                <table class="w-full text-left text-sm"><thead id="tableHead"></thead><tbody id="studentTableBody"></tbody></table>
+                <table class="w-full text-left text-sm">
+                    <thead>
+                        <tr class="bg-slate-50">
+                            <th class="p-4 sort-btn" data-sort="報到狀態">報到 ↕️</th>
+                            <th class="p-4 sort-btn" data-sort="班級">班級 ↕️</th>
+                            <th class="p-4 sort-btn" data-sort="座號">座號 ↕️</th>
+                            <th class="p-4 sort-btn" data-sort="姓名">姓名 ↕️</th>
+                            <th class="p-4">備註/去向</th>
+                            <th class="p-4">身分證號</th>
+                            <th class="p-4">本土語</th>
+                            <th class="p-4">聯絡電話</th>
+                            <th class="p-4">通訊地址</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentTableBody" class="divide-y cursor-pointer"></tbody>
+                </table>
             </div>
         </section>
 
-        </main>
+        <section id="classPanel" class="panel-section hidden p-10 h-full overflow-y-auto">
+             <div class="max-w-4xl mx-auto bg-white p-8 rounded-3xl shadow-xl border">
+                <h2 class="text-xl font-bold mb-4 text-blue-600">✏️ 貼上 Excel 名單自動更新班級座號</h2>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <input type="text" id="inputClassName" placeholder="輸入班級 (如 101)" class="w-full border p-3 rounded-xl mb-4 outline-none focus:ring-2 focus:ring-blue-500">
+                        <textarea id="rawNameList" rows="10" class="w-full border p-3 rounded-xl font-mono text-xs" placeholder="格式範例：&#10;01 黃于恩&#10;02 李杰倫"></textarea>
+                        <button id="matchNamesBtn" class="w-full mt-4 bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-700">開始比對並寫入資料庫</button>
+                    </div>
+                    <div id="matchLog" class="bg-slate-900 text-green-400 p-4 rounded-xl font-mono text-[10px] h-80 overflow-y-auto shadow-inner"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="importPanel" class="panel-section hidden p-10 text-center">
+            <div class="max-w-md mx-auto space-y-6">
+                 <button id="createTestStudentBtn" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold shadow-lg">建立測試生 (T123456789)</button>
+                 <div class="bg-white p-6 rounded-2xl border shadow-sm text-left">
+                    <h3 class="font-bold mb-2">大宗匯入 (Excel)</h3>
+                    <input type="file" id="excelFile" class="mb-4 w-full text-xs">
+                    <button id="importBtn" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold">執行匯入</button>
+                 </div>
+                 <div class="pt-20 border-t">
+                    <input type="text" id="resetInput" placeholder="請輸入「確認清空」" class="border p-2 rounded mb-2 text-center w-full text-sm">
+                    <button id="resetBtn" class="w-full bg-red-600 text-white py-2 rounded font-bold opacity-20 transition" disabled>刪除資料庫所有學生資料</button>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <script type="module" src="js/dashboard.js"></script>
 </body>
