@@ -1,140 +1,143 @@
 import { db } from './firebase-config.js';
-import { collection, getDocs, doc, setDoc, deleteDoc, query } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-let pieChart, barChart;
 let allData = [];
+let pieChart, barChart;
 
-// --- 核心：資料庫連線監控 (紅綠燈) ---
-async function checkConnection() {
-    const lamp = document.getElementById('connStatusLamp');
-    const text = document.getElementById('connStatusText');
-    try {
-        await getDocs(query(collection(db, "students")));
-        lamp.className = "w-3 h-3 rounded-full lamp-green";
-        text.innerText = "已連線至雲端 (OK)";
-        text.className = "text-green-500 font-bold";
-    } catch (e) {
-        lamp.className = "w-3 h-3 rounded-full lamp-red";
-        text.innerText = "連線失敗 (請檢查網路)";
-        text.className = "text-red-500 font-bold";
-        console.error("Firebase 連線錯誤:", e);
-    }
-}
-
-// --- 選單切換 ---
+// --- 初始化與選單 ---
 document.querySelectorAll('.menu-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('sidebar-active'));
         btn.classList.add('sidebar-active');
-        const target = btn.getAttribute('data-target');
-        document.querySelectorAll('.panel-section').forEach(p => p.id === target ? p.classList.remove('hidden') : p.classList.add('hidden'));
+        document.querySelectorAll('.panel-section').forEach(p => p.classList.add('hidden'));
+        document.getElementById(btn.dataset.target).classList.remove('hidden');
         loadData();
     });
 });
 
-// --- 讀取與排序資料 ---
+// --- 讀取雲端資料 ---
 async function loadData() {
-    checkConnection(); // 每次刷新時檢查連線
+    const lamp = document.getElementById('connStatusLamp');
     try {
         const qs = await getDocs(collection(db, "students"));
-        let raw = [];
-        qs.forEach(doc => raw.push(doc.data()));
+        allData = [];
+        qs.forEach(d => allData.push(d.data()));
         
-        // 前端排序：依班級 -> 座號
-        allData = raw.sort((a, b) => {
+        // 排序：班級 -> 座號
+        allData.sort((a, b) => {
             const cA = a["班級"] || "ZZZ";
             const cB = b["班級"] || "ZZZ";
             if (cA !== cB) return cA.localeCompare(cB, 'zh-TW');
             return (parseInt(a["座號"]) || 99) - (parseInt(b["座號"]) || 99);
         });
-        updateUI();
-    } catch (e) { console.error(e); }
+
+        lamp.className = "w-3 h-3 rounded-full lamp-green";
+        renderUI();
+    } catch (e) {
+        lamp.className = "w-3 h-3 rounded-full lamp-red";
+        console.error("連線錯誤", e);
+    }
 }
 
-// --- 更新儀表板 UI ---
-function updateUI() {
-    let done = 0, pending = 0, html = '';
-    let sStats = {}, lStats = { "閩南語": 0, "客家語": 0, "原住民語": 0, "其他": 0 };
+// --- 渲染畫面 ---
+function renderUI() {
+    let stats = { "線上報到": 0, "未報到": 0, "出國": 0, "私校": 0, "遷徙": 0 };
+    let tableHtml = '';
 
-    allData.forEach(d => {
-        const status = d["報到狀態"] || "未報到";
-        const cls = d["班級"] ? `${d["班級"]}-${d["座號"] || ''}` : '<span class="text-slate-300 italic">未編班</span>';
-        if (status === '線上報到') {
-            done++;
-            const l = d["本土語言名稱"] || "";
-            if (l.includes("閩南")) lStats["閩南語"]++;
-            else if (l.includes("客家")) lStats["客家語"]++;
-            else if (l.includes("原住")) lStats["原住民語"]++;
-            else lStats["其他"]++;
-        } else { pending++; }
-
-        sStats[status] = (sStats[status] || 0) + 1;
-        html += `<tr>
-            <td class="p-4">${status === '線上報到' ? '✅' : '❌'}</td>
-            <td class="p-4 font-bold text-blue-600">${cls}</td>
-            <td class="p-4 font-bold">${d["姓名"]}</td>
-            <td class="p-4 font-mono text-xs text-slate-400">${d["身份證號"]}</td>
-            <td class="p-4">${d["聯絡電話"] || d["監護人手機"] || ''}</td>
-        </tr>`;
+    allData.forEach(s => {
+        const status = s["報到狀態"] || "未報到";
+        if (stats[status] !== undefined) stats[status]++; else stats["未報到"]++;
+        
+        const clsInfo = s["班級"] ? `${s["班級"]}-${s["座號"] || ''}` : '<span class="text-gray-300">未編班</span>';
+        
+        tableHtml += `
+            <tr onclick="openEditModal('${s["身份證號"]}')" class="hover:bg-blue-50 transition">
+                <td class="p-4"><span class="px-2 py-1 rounded text-xs ${status==='線上報到'?'bg-green-100 text-green-700':'bg-gray-100'}">${status}</span></td>
+                <td class="p-4 font-bold">${clsInfo}</td>
+                <td class="p-4 font-bold text-blue-700">${s["姓名"]}</td>
+                <td class="p-4 text-gray-500">${s["聯絡電話"] || s["監護人手機"] || ''}</td>
+                <td class="p-4 text-blue-500 underline text-xs">修改</td>
+            </tr>`;
     });
+
     document.getElementById('statTotal').innerText = allData.length;
-    document.getElementById('statDone').innerText = done;
-    document.getElementById('statPending').innerText = pending;
-    document.getElementById('quickTableBody').innerHTML = html || '<tr><td colspan="5" class="p-10 text-center text-slate-400">暫無資料</td></tr>';
+    document.getElementById('statDone').innerText = stats["線上報到"];
+    document.getElementById('statPending').innerText = stats["未報到"];
+    document.getElementById('statOther').innerText = stats["出國"] + stats["私校"];
+    document.getElementById('studentTableBody').innerHTML = tableHtml;
+
+    updateCharts(stats);
 }
 
-// --- 功能：姓名比對編班 (手動貼上) ---
+// --- 統計圖表 ---
+function updateCharts(stats) {
+    const pCtx = document.getElementById('anaPieChart').getContext('2d');
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(pCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(stats),
+            datasets: [{ data: Object.values(stats), backgroundColor: ['#22c55e','#ef4444','#f59e0b','#6366f1','#94a3b8'] }]
+        },
+        options: { maintainAspectRatio: false, plugins: { title: { display: true, text: '報到狀態分佈' } } }
+    });
+}
+
+// --- 編輯 Modal 功能 ---
+window.openEditModal = (id) => {
+    const s = allData.find(x => x["身份證號"] === id);
+    if (!s) return;
+    document.getElementById('editId').value = s["身份證號"];
+    document.getElementById('editName').value = s["姓名"];
+    document.getElementById('editStatus').value = s["報到狀態"] || "未報到";
+    document.getElementById('editClass').value = s["班級"] || "";
+    document.getElementById('editSeat').value = s["座號"] || "";
+    document.getElementById('editPhone').value = s["聯絡電話"] || "";
+    document.getElementById('editModal').style.display = 'flex';
+};
+
+window.closeModal = () => { document.getElementById('editModal').style.display = 'none'; };
+
+document.getElementById('saveEditBtn').addEventListener('click', async () => {
+    const id = document.getElementById('editId').value;
+    const updateData = {
+        "姓名": document.getElementById('editName').value,
+        "報到狀態": document.getElementById('editStatus').value,
+        "班級": document.getElementById('editClass').value,
+        "座號": document.getElementById('editSeat').value,
+        "聯絡電話": document.getElementById('editPhone').value
+    };
+    await updateDoc(doc(db, "students", id), updateData);
+    alert("修改成功");
+    closeModal();
+    loadData();
+});
+
+// --- 手動編班比對 ---
 document.getElementById('matchNamesBtn').addEventListener('click', async () => {
-    const className = document.getElementById('inputClassName').value;
-    const rawText = document.getElementById('rawNameList').value;
-    const logDiv = document.getElementById('matchLog');
-    if (!className || !rawText) return alert("請填寫班級與名單");
+    const cls = document.getElementById('inputClassName').value;
+    const txt = document.getElementById('rawNameList').value;
+    const log = document.getElementById('matchLog');
+    if (!cls || !txt) return alert("資料不完整");
 
-    logDiv.innerHTML = "比對中...";
-    const lines = rawText.split('\n');
-    let ok = 0, err = 0;
-
+    const lines = txt.split('\n');
     for (let line of lines) {
-        if (!line.trim()) continue;
         const match = line.match(/(\d+)\s+(.+)/);
         if (match) {
             const seat = match[1].trim();
             const name = match[2].trim();
             const student = allData.find(s => s["姓名"] === name);
             if (student) {
-                await setDoc(doc(db, "students", student["身份證號"]), { "班級": className, "座號": seat }, { merge: true });
-                logDiv.innerHTML += `<div class="text-green-600">✅ ${name} (已對應至 ${seat} 號)</div>`;
-                ok++;
+                await updateDoc(doc(db, "students", student["身份證號"]), { "班級": cls, "座號": seat });
+                log.innerHTML += `<div class="text-green-600">✅ ${name} -> ${cls}-${seat}</div>`;
             } else {
-                logDiv.innerHTML += `<div class="text-red-500">❌ ${name} (資料庫無此人)</div>`;
-                err++;
+                log.innerHTML += `<div class="text-red-500">❌ 找不到 ${name}</div>`;
             }
         }
     }
-    alert(`處理完成！成功：${ok}, 失敗：${err}`);
     loadData();
 });
 
-// --- 功能：匯出名冊 (自訂欄位) ---
-document.getElementById('exportBtn').addEventListener('click', () => {
-    const selectedCols = ['班級', '座號', '姓名'];
-    document.querySelectorAll('.col-check:checked').forEach(cb => selectedCols.push(cb.value));
-
-    const exportData = allData
-        .filter(s => s["班級"])
-        .map(s => {
-            let row = {};
-            selectedCols.forEach(c => row[c] = s[c] || "");
-            return row;
-        });
-
-    if (exportData.length === 0) return alert("無已編班資料");
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "分班名冊");
-    XLSX.writeFile(wb, `新莊國小_分班名冊.xlsx`);
-});
-
-// --- (其他匯入與重置功能同上，已整合) ---
-document.getElementById('refreshDataBtn').addEventListener('click', loadData);
-loadData(); // 初次載入
+// --- (其餘匯入與重置邏輯同上) ---
+document.getElementById('refreshDataBtn')?.addEventListener('click', loadData);
+loadData();
