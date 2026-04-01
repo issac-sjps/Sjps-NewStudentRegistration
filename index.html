@@ -3,38 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>白名單管理 - 新生報到系統</title>
+    <title>新莊國小 - 新生線上報到系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-white h-screen flex justify-center items-center">
+<body class="bg-gray-100 text-gray-800 font-sans">
 
-    <div class="bg-slate-800 p-8 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700">
-        <h2 class="text-2xl font-bold mb-2 text-blue-400">🛡️ 最高權限管理員設定</h2>
-        <p class="text-sm text-slate-400 mb-6">僅超級管理員可新增/移除後台系統的白名單 Email。</p>
-
-        <div class="mb-6">
-            <label class="block text-sm font-bold mb-2">新增授權的 Google 帳號</label>
-            <div class="flex space-x-2">
-                <input type="email" placeholder="teacher@sjps.kh.edu.tw" class="flex-1 border-none p-2 rounded bg-slate-700 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
-                <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">加入</button>
-            </div>
+    <header class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">高雄市新莊國小 115學年度 新生報到系統</h1>
+            <button onclick="document.getElementById('zoneModal').classList.remove('hidden')" class="bg-white text-blue-600 px-4 py-2 rounded font-bold shadow hover:bg-gray-100">
+                🔍 本校學區戶籍查詢
+            </button>
         </div>
+    </header>
 
-        <div class="bg-slate-700 rounded p-4 h-64 overflow-y-auto">
-            <h3 class="font-bold border-b border-slate-600 pb-2 mb-2">目前已授權名單</h3>
-            <ul class="space-y-2">
-                <li class="flex justify-between items-center bg-slate-600 p-2 rounded">
-                    <span>issac@sjps.kh.edu.tw <span class="text-xs bg-red-500 text-white px-1 rounded ml-2">Super Admin</span></span>
-                </li>
-                <li class="flex justify-between items-center bg-slate-600 p-2 rounded">
-                    <span>registrar@sjps.kh.edu.tw</span>
-                    <button class="text-red-400 hover:text-red-300 font-bold text-sm">移除</button>
-                </li>
-            </ul>
-        </div>
+    <main class="container mx-auto mt-8 p-4 max-w-3xl">
         
-        <div class="mt-6 text-center">
-            <a href="dashboard.html" class="text-slate-400 hover:text-white underline text-sm">返回管理後台</a>
+        <div id="loginSection" class="bg-white p-8 rounded-lg shadow-md mb-8">
+            <h2 class="text-xl font-bold border-b pb-2 mb-4">新生身分驗證</h2>
+            <p class="text-red-500 text-sm mb-4">請輸入新生資料進行檢核。非本校名單或已報到者將無法登入。</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">學生身分證字號</label>
+                    <input type="text" id="loginId" placeholder="例如：E123456789" class="w-full border p-2 rounded uppercase" maxlength="10">
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">學生出生年月日 (民國)</label>
+                    <input type="text" id="loginBirthday" placeholder="例如：1080101" class="w-full border p-2 rounded" maxlength="7">
+                </div>
+                <button id="btnLogin" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700">驗證並開始報到</button>
+            </div>
+            <div id="loginMessage" class="mt-4 text-red-600 font-bold hidden"></div>
+        </div>
+
+        <div id="formSection" class="bg-white p-8 rounded-lg shadow-md hidden">
+            <h2 class="text-xl font-bold border-b pb-2 mb-4">新生詳細資料填寫</h2>
+            <form id="enrollmentForm" class="space-y-6">
+                <div class="bg-gray-50 p-4 rounded border">
+                    <h3 class="font-bold mb-2 text-gray-700">學生基本資料 (系統帶入)</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-600">學生姓名</label>
+                            <input type="text" id="studentName" class="w-full border p-2 rounded bg-gray-200" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600">學生編號</label>
+                            <input type="text" id="studentId" class="w-full border p-2 rounded bg-gray-200" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600">身分證號</label>
+                            <input type="text" id="studentRocId" class="w-full border p-2 rounded bg-gray-200" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600">出生日期</label>
+                            <input type="text" id="studentDob" class="w-full border p-2 rounded bg-gray-200" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold mb-2 text-gray-700 border-b pb-1">聯絡資訊</h3>
+                    <div class="grid grid-cols-1 gap-4">
+                        <input type="text" placeholder="聯絡地址 (必填)" required class="w-full border p-2 rounded">
+                        <input type="tel" placeholder="家裡聯絡電話 (選填，如：07-3411373)" class="w-full border p-2 rounded">
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="font-bold mb-2 text-gray-700 border-b pb-1">家長與緊急聯絡人</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <select class="w-full border p-2 rounded" required>
+                            <option value="">請選擇監護人稱謂 (必填)</option>
+                            <option value="父">父</option>
+                            <option value="母">母</option>
+                            <option value="祖父">祖父</option>
+                            <option value="祖母">祖母</option>
+                            <option value="其他">其他</option>
+                        </select>
+                        <input type="text" placeholder="監護人姓名 (必填)" required class="w-full border p-2 rounded">
+                        <input type="tel" placeholder="父親手機號碼 (09開頭)" pattern="09\d{8}" class="w-full border p-2 rounded">
+                        <input type="tel" placeholder="母親手機號碼 (09開頭)" pattern="09\d{8}" class="w-full border p-2 rounded">
+                        <input type="text" placeholder="緊急聯絡人姓名 (必填)" required class="w-full border p-2 rounded bg-yellow-50">
+                        <input type="tel" placeholder="緊急聯絡人電話 (必填)" required class="w-full border p-2 rounded bg-yellow-50">
+                        <input type="text" placeholder="與新生關係 (如:阿姨)" required class="w-full border p-2 rounded bg-yellow-50">
+                    </div>
+                </div>
+
+                <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input type="checkbox" required class="w-5 h-5 text-blue-600">
+                        <span class="text-sm font-bold text-gray-800">我已閱讀並同意提供以上資料供高雄市新莊國小學籍建檔使用。</span>
+                    </label>
+                </div>
+
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 text-lg">確認送出報到資料</button>
+            </form>
+        </div>
+
+        <div id="successSection" class="bg-white p-8 rounded-lg shadow-md text-center hidden border-4 border-green-500">
+            <div class="text-green-500 text-6xl mb-4">✅</div>
+            <h2 class="text-3xl font-bold text-gray-800 mb-2">線上報到已完成！</h2>
+            <div class="bg-gray-100 p-4 rounded my-4 text-left inline-block">
+                <p class="text-lg">學生姓名：<span id="successName" class="font-bold text-blue-600">王小明</span></p>
+                <p class="text-lg">報到時間：<span id="successTime" class="font-bold text-red-600">2026/04/15 10:30:15</span></p>
+            </div>
+            <p class="text-red-600 font-bold text-xl mt-4">⚠️ 請務必來電 新莊國小註冊組 3411373#112</p>
+            <p class="text-gray-700 mt-2 font-bold">通知我們您已完成線上報到，以利後續學籍建檔。</p>
+            <p class="text-blue-600 mt-2">（本次報到因已在新莊國小系統中，無須現場繳交戶口名簿等相關資料）</p>
+            <p class="text-sm text-gray-400 mt-6">建議您將此畫面截圖留存</p>
+        </div>
+    </main>
+
+    <div id="zoneModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <h2 class="text-2xl font-bold border-b pb-2 mb-4 text-blue-700">新莊國小 學區戶籍說明</h2>
+            <div class="space-y-3 text-gray-800 text-sm md:text-base leading-relaxed h-64 overflow-y-auto pr-2">
+                <p class="text-red-600 font-bold bg-red-50 p-2 rounded">
+                    (需要確定詳細的鄰，否則可能會有其他學校來找您回去的情形，並且我們不敢收)
+                </p>
+                <ul class="list-disc pl-5 space-y-1 font-semibold">
+                    <li>新下里：1~9鄰、21鄰、25鄰、36鄰</li>
+                    <li>新上里：1~17鄰、23~31鄰、46~48鄰、52鄰、55鄰</li>
+                    <li>新中里：全里</li>
+                    <li>菜公里：1~3鄰、42~43鄰、49鄰、53鄰、59鄰、64鄰</li>
+                    <li>鼎力里：1~2鄰</li>
+                </ul>
+                <p class="text-red-600 font-bold mt-4 border border-red-300 p-2 rounded text-center">
+                    &lt;如有租屋戶籍問題，請自行善用里民服務，本校沒有相關的戶籍協助措施&gt;
+                </p>
+                <div class="mt-4 p-3 bg-gray-100 rounded">
+                    <p>🔗 <a href="https://www.sjps.kh.edu.tw/index.php?WebID=85" target="_blank" class="text-blue-600 hover:underline">新莊國小校網查詢連結</a></p>
+                    <p>🔗 <a href="https://affairs.kh.edu.tw/8239" target="_blank" class="text-blue-600 hover:underline">新莊國小學籍網查詢連結</a></p>
+                </div>
+            </div>
+            <div class="mt-6 text-right">
+                <button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 font-bold">關閉</button>
+            </div>
         </div>
     </div>
 
