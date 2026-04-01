@@ -17,18 +17,18 @@
         </div>
     </header>
 
-    <main class="container mx-auto mt-8 p-4 max-w-3xl">
+    <main class="container mx-auto mt-8 p-4 max-w-4xl">
         
         <div id="loginSection" class="bg-white p-8 rounded-lg shadow-md mb-8">
             <h2 class="text-xl font-bold border-b pb-2 mb-4">新生身分驗證</h2>
             <p class="text-red-500 text-sm mb-4">請輸入新生資料進行檢核。非本校名單或已報到者將無法登入。</p>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-gray-700 font-bold mb-2">學生身分證字號</label>
+                    <label class="block text-gray-700 font-bold mb-2">學生身份證號</label>
                     <input type="text" id="loginId" placeholder="例如：E123456789" class="w-full border p-2 rounded uppercase" maxlength="10">
                 </div>
                 <div>
-                    <label class="block text-gray-700 font-bold mb-2">學生出生年月日 (民國)</label>
+                    <label class="block text-gray-700 font-bold mb-2">學生出生日期 (民國)</label>
                     <input type="text" id="loginBirthday" placeholder="例如：1080101" class="w-full border p-2 rounded" maxlength="7">
                 </div>
                 <button id="btnLogin" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700">驗證並開始報到</button>
@@ -37,66 +37,76 @@
         </div>
 
         <div id="formSection" class="bg-white p-8 rounded-lg shadow-md hidden">
-            <h2 class="text-xl font-bold border-b pb-2 mb-4">新生詳細資料填寫</h2>
-            <form id="enrollmentForm" class="space-y-6">
+            <h2 class="text-2xl font-bold border-b pb-2 mb-6 text-blue-700">新生詳細資料填寫</h2>
+            <form id="enrollmentForm" class="space-y-8">
+                
                 <div class="bg-gray-50 p-4 rounded border">
-                    <h3 class="font-bold mb-2 text-gray-700">學生基本資料 (系統帶入)</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm text-gray-600">學生姓名</label>
-                            <input type="text" id="studentName" class="w-full border p-2 rounded bg-gray-200" readonly>
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600">學生編號</label>
-                            <input type="text" id="studentId" class="w-full border p-2 rounded bg-gray-200" readonly>
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600">身分證號</label>
-                            <input type="text" id="studentRocId" class="w-full border p-2 rounded bg-gray-200" readonly>
-                        </div>
-                        <div>
-                            <label class="block text-sm text-gray-600">出生日期</label>
-                            <input type="text" id="studentDob" class="w-full border p-2 rounded bg-gray-200" readonly>
-                        </div>
+                    <h3 class="font-bold mb-4 text-gray-800 text-lg border-l-4 border-blue-500 pl-2">一、基本資料 (系統帶入)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="block text-sm text-gray-600">學生姓名</label><input type="text" id="studentName" name="姓名" class="w-full border p-2 rounded bg-gray-200" readonly></div>
+                        <div><label class="block text-sm text-gray-600">身份證號</label><input type="text" id="studentRocId" name="身份證號" class="w-full border p-2 rounded bg-gray-200" readonly></div>
+                        <div><label class="block text-sm text-gray-600">出生日期</label><input type="text" id="studentDob" name="出生日期" class="w-full border p-2 rounded bg-gray-200" readonly></div>
+                        <input type="hidden" id="studentId" name="學生編號">
                     </div>
                 </div>
 
                 <div>
-                    <h3 class="font-bold mb-2 text-gray-700 border-b pb-1">聯絡資訊</h3>
-                    <div class="grid grid-cols-1 gap-4">
-                        <input type="text" placeholder="聯絡地址 (必填)" required class="w-full border p-2 rounded">
-                        <input type="tel" placeholder="家裡聯絡電話 (選填，如：07-3411373)" class="w-full border p-2 rounded">
+                    <h3 class="font-bold mb-4 text-gray-800 text-lg border-l-4 border-green-500 pl-2">二、聯絡與監護人資訊</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="col-span-1 md:col-span-2"><label class="block text-sm font-bold mb-1">聯絡地址 (必填)</label><input type="text" name="聯絡地址" required class="w-full border p-2 rounded"></div>
+                        <div><label class="block text-sm font-bold mb-1">家裡聯絡電話</label><input type="text" name="聯絡電話" placeholder="如：07-3411373" class="w-full border p-2 rounded"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-green-50 p-4 rounded">
+                        <div><label class="block text-sm font-bold mb-1">監護人稱謂</label><select name="監護人" required class="w-full border p-2 rounded"><option value="">請選擇</option><option value="父">父</option><option value="母">母</option><option value="祖父母">祖父母</option><option value="其他">其他</option></select></div>
+                        <div><label class="block text-sm font-bold mb-1">監護人姓名</label><input type="text" name="監護人姓名" required class="w-full border p-2 rounded"></div>
+                        <div><label class="block text-sm font-bold mb-1">父親手機號碼</label><input type="tel" name="父親手機號碼" placeholder="09開頭" class="w-full border p-2 rounded"></div>
+                        <div><label class="block text-sm font-bold mb-1">母親手機號碼</label><input type="tel" name="母親手機號碼" placeholder="09開頭" class="w-full border p-2 rounded"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 bg-red-50 p-4 rounded border border-red-100">
+                        <div><label class="block text-sm font-bold mb-1 text-red-700">緊急聯絡人姓名</label><input type="text" name="緊急聯絡人姓名" required class="w-full border p-2 rounded"></div>
+                        <div><label class="block text-sm font-bold mb-1 text-red-700">與新生關係</label><input type="text" name="緊急聯絡人與新生關係" placeholder="如：姑姑" required class="w-full border p-2 rounded"></div>
+                        <div><label class="block text-sm font-bold mb-1 text-red-700">緊急聯絡人電話</label><input type="text" name="緊急聯絡人電話" required class="w-full border p-2 rounded"></div>
                     </div>
                 </div>
 
                 <div>
-                    <h3 class="font-bold mb-2 text-gray-700 border-b pb-1">家長與緊急聯絡人</h3>
-                    <div class="grid grid-cols-2 gap-4">
-                        <select class="w-full border p-2 rounded" required>
-                            <option value="">請選擇監護人稱謂 (必填)</option>
-                            <option value="父">父</option>
-                            <option value="母">母</option>
-                            <option value="祖父">祖父</option>
-                            <option value="祖母">祖母</option>
-                            <option value="其他">其他</option>
-                        </select>
-                        <input type="text" placeholder="監護人姓名 (必填)" required class="w-full border p-2 rounded">
-                        <input type="tel" placeholder="父親手機號碼 (09開頭)" pattern="09\d{8}" class="w-full border p-2 rounded">
-                        <input type="tel" placeholder="母親手機號碼 (09開頭)" pattern="09\d{8}" class="w-full border p-2 rounded">
-                        <input type="text" placeholder="緊急聯絡人姓名 (必填)" required class="w-full border p-2 rounded bg-yellow-50">
-                        <input type="tel" placeholder="緊急聯絡人電話 (必填)" required class="w-full border p-2 rounded bg-yellow-50">
-                        <input type="text" placeholder="與新生關係 (如:阿姨)" required class="w-full border p-2 rounded bg-yellow-50">
+                    <h3 class="font-bold mb-4 text-gray-800 text-lg border-l-4 border-yellow-500 pl-2">三、身分與健康狀況調查</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-bold mb-1">低收/中低收資格</label><select name="低收/中低收" class="w-full border p-2 rounded"><option value="無">無</option><option value="低收入戶">低收入戶</option><option value="中低收入戶">中低收入戶</option></select></div>
+                        <div><label class="block text-sm font-bold mb-1">關注疾病 (如氣喘、心臟病等)</label><input type="text" name="關注疾病" placeholder="若無請填無" class="w-full border p-2 rounded"></div>
+                        
+                        <div><label class="block text-sm font-bold mb-1">學生是否身心障礙</label><select name="學生是否身心障礙" class="w-full border p-2 rounded"><option value="否">否</option><option value="是">是</option></select></div>
+                        <div><label class="block text-sm font-bold mb-1">學生身心障礙類別</label><input type="text" name="學生身心障礙類別" class="w-full border p-2 rounded"></div>
+                        
+                        <div><label class="block text-sm font-bold mb-1">父母是否身心障礙</label><select name="父母是否身心障礙" class="w-full border p-2 rounded"><option value="否">否</option><option value="是">是</option></select></div>
+                        <div><label class="block text-sm font-bold mb-1">父母身心障礙類別</label><input type="text" name="父母身心障礙類別" class="w-full border p-2 rounded"></div>
+
+                        <div><label class="block text-sm font-bold mb-1">原住民學生族別</label><input type="text" name="原住民學生族別" placeholder="若無請留白" class="w-full border p-2 rounded"></div>
+                        <div><label class="block text-sm font-bold mb-1">外配子女父母國籍</label><input type="text" name="外配子女父母國籍" placeholder="若無請留白" class="w-full border p-2 rounded"></div>
                     </div>
                 </div>
 
-                <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded">
+                <div>
+                    <h3 class="font-bold mb-4 text-gray-800 text-lg border-l-4 border-purple-500 pl-2">四、學校選修與其他</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-bold mb-1">選修本土語</label><select name="選修本土語" class="w-full border p-2 rounded"><option value="是">是</option><option value="否">否</option></select></div>
+                        <div><label class="block text-sm font-bold mb-1">本土語言名稱</label><select name="本土語言名稱" class="w-full border p-2 rounded"><option value="閩南語">閩南語</option><option value="客家語">客家語</option><option value="原住民語">原住民語</option><option value="新住民語">新住民語</option></select></div>
+                        <div><label class="block text-sm font-bold mb-1">營養午餐類型</label><select name="營養午餐類型" class="w-full border p-2 rounded"><option value="葷食">葷食</option><option value="素食">素食</option></select></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-gray-50 p-4 rounded">
+                        <div><label class="block text-sm font-bold mb-1">是否有兄弟姐妹同時入學/在校</label><select name="兄弟姐妹同時入學" class="w-full border p-2 rounded"><option value="否">否</option><option value="是">是</option></select></div>
+                        <div><label class="block text-sm font-bold mb-1">兄弟姐妹姓名及班級</label><input type="text" name="兄弟姐妹姓名" placeholder="如：王大明(3年1班)" class="w-full border p-2 rounded"></div>
+                    </div>
+                </div>
+
+                <div class="mt-8 p-4 bg-blue-50 border border-blue-200 rounded">
                     <label class="flex items-center space-x-2 cursor-pointer">
                         <input type="checkbox" required class="w-5 h-5 text-blue-600">
                         <span class="text-sm font-bold text-gray-800">我已閱讀並同意提供以上資料供高雄市新莊國小學籍建檔使用。</span>
                     </label>
                 </div>
 
-                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 text-lg">確認送出報到資料</button>
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-4 rounded hover:bg-green-700 text-xl shadow-lg">確認送出報到資料</button>
             </form>
         </div>
 
@@ -104,12 +114,11 @@
             <div class="text-green-500 text-6xl mb-4">✅</div>
             <h2 class="text-3xl font-bold text-gray-800 mb-2">線上報到已完成！</h2>
             <div class="bg-gray-100 p-4 rounded my-4 text-left inline-block">
-                <p class="text-lg">學生姓名：<span id="successName" class="font-bold text-blue-600">王小明</span></p>
-                <p class="text-lg">報到時間：<span id="successTime" class="font-bold text-red-600">2026/04/15 10:30:15</span></p>
+                <p class="text-lg">學生姓名：<span id="successName" class="font-bold text-blue-600"></span></p>
+                <p class="text-lg">報到時間：<span id="successTime" class="font-bold text-red-600"></span></p>
             </div>
             <p class="text-red-600 font-bold text-xl mt-4">⚠️ 請務必來電 新莊國小註冊組 3411373#112</p>
             <p class="text-gray-700 mt-2 font-bold">通知我們您已完成線上報到，以利後續學籍建檔。</p>
-            <p class="text-blue-600 mt-2">（本次報到因已在新莊國小系統中，無須現場繳交戶口名簿等相關資料）</p>
             <p class="text-sm text-gray-400 mt-6">建議您將此畫面截圖留存</p>
         </div>
     </main>
@@ -118,9 +127,7 @@
         <div class="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4">
             <h2 class="text-2xl font-bold border-b pb-2 mb-4 text-blue-700">新莊國小 學區戶籍說明</h2>
             <div class="space-y-3 text-gray-800 text-sm md:text-base leading-relaxed h-64 overflow-y-auto pr-2">
-                <p class="text-red-600 font-bold bg-red-50 p-2 rounded">
-                    (需要確定詳細的鄰，否則可能會有其他學校來找您回去的情形，並且我們不敢收)
-                </p>
+                <p class="text-red-600 font-bold bg-red-50 p-2 rounded">(需要確定詳細的鄰，否則可能會有其他學校來找您回去的情形，並且我們不敢收)</p>
                 <ul class="list-disc pl-5 space-y-1 font-semibold">
                     <li>新下里：1~9鄰、21鄰、25鄰、36鄰</li>
                     <li>新上里：1~17鄰、23~31鄰、46~48鄰、52鄰、55鄰</li>
@@ -128,19 +135,14 @@
                     <li>菜公里：1~3鄰、42~43鄰、49鄰、53鄰、59鄰、64鄰</li>
                     <li>鼎力里：1~2鄰</li>
                 </ul>
-                <p class="text-red-600 font-bold mt-4 border border-red-300 p-2 rounded text-center">
-                    &lt;如有租屋戶籍問題，請自行善用里民服務，本校沒有相關的戶籍協助措施&gt;
-                </p>
-                <div class="mt-4 p-3 bg-gray-100 rounded">
-                    <p>🔗 <a href="https://www.sjps.kh.edu.tw/index.php?WebID=85" target="_blank" class="text-blue-600 hover:underline">新莊國小校網查詢連結</a></p>
-                    <p>🔗 <a href="https://affairs.kh.edu.tw/8239" target="_blank" class="text-blue-600 hover:underline">新莊國小學籍網查詢連結</a></p>
-                </div>
+                <p class="text-red-600 font-bold mt-4 border border-red-300 p-2 rounded text-center">&lt;如有租屋戶籍問題，請自行善用里民服務，本校沒有相關的戶籍協助措施&gt;</p>
             </div>
             <div class="mt-6 text-right">
-                <button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 font-bold">關閉</button>
+                <button onclick="document.getElementById('zoneModal').classList.add('hidden')" class="bg-gray-500 text-white px-6 py-2 rounded font-bold">關閉</button>
             </div>
         </div>
     </div>
+
     <script type="module" src="js/index.js"></script>
-    </body>
+</body>
 </html>
