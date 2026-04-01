@@ -8,35 +8,114 @@
 </head>
 <body class="bg-slate-900 text-white h-screen flex justify-center items-center">
 
-    <div class="bg-slate-800 p-8 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700">
-        <h2 class="text-2xl font-bold mb-2 text-blue-400">🛡️ 最高權限管理員設定</h2>
-        <p class="text-sm text-slate-400 mb-6">僅超級管理員可新增/移除後台系統的白名單 Email。</p>
+    <div id="loginSection" class="bg-slate-800 p-10 rounded-3xl shadow-2xl text-center border border-slate-700">
+        <h2 class="text-3xl font-black mb-6 text-blue-400">🛡️ 管理員登入</h2>
+        <button id="loginBtn" class="bg-white text-slate-900 px-8 py-4 rounded-2xl font-bold flex items-center justify-center space-x-2 hover:bg-slate-200 transition w-full">
+            <img src="https://www.google.com/favicon.ico" class="w-5 h-5">
+            <span>使用 Google 帳號登入</span>
+        </button>
+    </div>
+
+    <div id="adminSection" class="hidden bg-slate-800 p-8 rounded-lg shadow-2xl w-full max-w-lg border border-slate-700">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-blue-400">🛡️ 白名單設定</h2>
+            <button onclick="logout()" class="text-xs text-slate-400 hover:text-red-400">登出</button>
+        </div>
+        
+        <p class="text-sm text-slate-400 mb-6">僅授權 Email 可進入後台統計系統。</p>
 
         <div class="mb-6">
-            <label class="block text-sm font-bold mb-2">新增授權的 Google 帳號</label>
+            <label class="block text-sm font-bold mb-2">新增授權 Email</label>
             <div class="flex space-x-2">
-                <input type="email" placeholder="teacher@sjps.kh.edu.tw" class="flex-1 border-none p-2 rounded bg-slate-700 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
-                <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">加入</button>
+                <input type="email" id="newAdminEmail" placeholder="teacher@sjps.kh.edu.tw" class="flex-1 border-none p-2 rounded bg-slate-700 text-white focus:ring-2 focus:ring-blue-500">
+                <button id="addAdminBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">加入</button>
             </div>
         </div>
 
         <div class="bg-slate-700 rounded p-4 h-64 overflow-y-auto">
             <h3 class="font-bold border-b border-slate-600 pb-2 mb-2">目前已授權名單</h3>
-            <ul class="space-y-2">
-                <li class="flex justify-between items-center bg-slate-600 p-2 rounded">
-                    <span>issac@sjps.kh.edu.tw <span class="text-xs bg-red-500 text-white px-1 rounded ml-2">Super Admin</span></span>
-                </li>
-                <li class="flex justify-between items-center bg-slate-600 p-2 rounded">
-                    <span>registrar@sjps.kh.edu.tw</span>
-                    <button class="text-red-400 hover:text-red-300 font-bold text-sm">移除</button>
-                </li>
-            </ul>
+            <ul id="adminList" class="space-y-2">
+                </ul>
         </div>
         
         <div class="mt-6 text-center">
-            <a href="dashboard.html" class="text-slate-400 hover:text-white underline text-sm">返回管理後台</a>
+            <a href="dashboard.html" class="bg-blue-600 block py-3 rounded-xl font-bold hover:bg-blue-500 transition">進入管理統計後台 ➜</a>
         </div>
     </div>
 
-    </body>
+    <script type="module">
+        import { db, auth } from './js/firebase-config.js';
+        import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const loginSection = document.getElementById('loginSection');
+        const adminSection = document.getElementById('adminSection');
+        const adminList = document.getElementById('adminList');
+
+        // 登入功能
+        document.getElementById('loginBtn').onclick = async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                alert("登入失敗: " + error.message);
+            }
+        };
+
+        // 登出功能
+        window.logout = () => signOut(auth);
+
+        // 監控登入狀態
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                loginSection.classList.add('hidden');
+                adminSection.classList.remove('hidden');
+                fetchAdmins();
+            } else {
+                loginSection.classList.remove('hidden');
+                adminSection.classList.add('hidden');
+            }
+        });
+
+        // 讀取白名單
+        function fetchAdmins() {
+            onSnapshot(collection(db, "admins"), (snapshot) => {
+                adminList.innerHTML = '';
+                snapshot.forEach((doc) => {
+                    const email = doc.id;
+                    const li = document.createElement('li');
+                    li.className = "flex justify-between items-center bg-slate-600 p-2 rounded text-sm";
+                    li.innerHTML = `
+                        <span>${email}</span>
+                        <button onclick="removeAdmin('${email}')" class="text-red-400 hover:text-red-300 font-bold">移除</button>
+                    `;
+                    adminList.appendChild(li);
+                });
+            });
+        }
+
+        // 新增管理員
+        document.getElementById('addAdminBtn').onclick = async () => {
+            const email = document.getElementById('newAdminEmail').value.trim();
+            if (!email) return;
+            try {
+                await setDoc(doc(db, "admins", email), { addedAt: new Date() });
+                document.getElementById('newAdminEmail').value = '';
+                alert("已加入白名單");
+            } catch (e) {
+                alert("權限不足：你不是管理員或未登入");
+            }
+        };
+
+        // 移除管理員
+        window.removeAdmin = async (email) => {
+            if (!confirm(`確定要移除 ${email} 的管理權限嗎？`)) return;
+            try {
+                await deleteDoc(doc(db, "admins", email));
+            } catch (e) {
+                alert("移除失敗：" + e.message);
+            }
+        };
+    </script>
+</body>
 </html>
