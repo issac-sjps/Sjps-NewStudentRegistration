@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新生資料分析 — 新莊國小</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #0a0e1a;
+  --surface: #111827;
+  --surface2: #1a2235;
+  --border: #1e2d4a;
+  --accent: #3b82f6;
+  --accent2: #06b6d4;
+  --green: #10b981;
+  --orange: #f59e0b;
+  --red: #ef4444;
+  --purple: #8b5cf6;
+  --text: #e2e8f0;
+  --text2: #64748b;
+  --text3: #94a3b8;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+#authOverlay {
+  position: fixed; inset: 0; background: #0a0e1a; z-index: 9999;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 44px; height: 44px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin-bottom: 16px;
+}
+
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.topbar-title { font-size: 15px; font-weight: 900; }
+.topbar-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.conn-wrap { display: flex; align-items: center; gap: 6px; }
+.conn-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--text2); transition: all 0.3s;
+}
+.conn-dot.ok  { background: var(--green); box-shadow: 0 0 7px var(--green); animation: blink 2s ease-in-out infinite; }
+.conn-dot.err { background: var(--red); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+.conn-text { font-size: 11px; color: var(--text2); }
+
+.btn-action {
+  font-size: 12px; font-weight: 700; border: none; padding: 7px 15px;
+  border-radius: 8px; cursor: pointer; transition: opacity 0.2s; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn-refresh { background: var(--accent); color: white; }
+.btn-back { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+.btn-action:hover { opacity: 0.82; }
+.btn-action:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.tabs {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 28px; display: flex;
+}
+.tab {
+  padding: 12px 18px; background: none; border: none; color: var(--text2);
+  font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all 0.15s; display: flex; align-items: center; gap: 7px;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-badge {
+  background: var(--red); color: white; font-size: 10px; font-weight: 800;
+  padding: 1px 6px; border-radius: 10px; display: none;
+}
+.tab-badge.show { display: inline-block; }
+
+main { padding: 24px 28px; max-width: 1360px; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+.loading-state {
+  text-align: center; padding: 64px 20px; color: var(--text2);
+}
+.loading-state .spinner { margin: 0 auto 14px; }
+.loading-state p { font-size: 14px; font-weight: 600; }
+
+.stat-row {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 13px; margin-bottom: 22px;
+}
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px; border-bottom-width: 3px;
+}
+.stat-label { font-size: 10px; font-weight: 800; color: var(--text2); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; }
+.stat-val { font-size: 34px; font-weight: 900; line-height: 1; font-family: 'JetBrains Mono', monospace; }
+.stat-sub { font-size: 11px; color: var(--text2); margin-top: 5px; }
+
+.section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 13px; padding: 20px; margin-bottom: 16px;
+}
+.section.warn { border-color: rgba(245,158,11,0.4); }
+.section-hd {
+  font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 8px;
+  padding-bottom: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.section-hd::before {
+  content:''; width: 3px; height: 14px; border-radius: 2px;
+  background: var(--accent); flex-shrink: 0;
+}
+.section.warn .section-hd::before { background: var(--orange); }
+
+.donut-wrap { display: flex; gap: 32px; align-items: center; flex-wrap: wrap; }
+.donut-legend { display: flex; flex-direction: column; gap: 10px; }
+.legend-row { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.legend-val { font-weight: 700; margin-left: 4px; font-family: 'JetBrains Mono', monospace; }
+.legend-pct { color: var(--text2); font-size: 12px; }
+
+.bar-item { margin-bottom: 11px; }
+.bar-row { display: flex; align-items: center; gap: 11px; margin-bottom: 5px; }
+.bar-lbl { min-width: 110px; font-size: 12px; color: var(--text); text-align: right; flex-shrink: 0; }
+.bar-track { flex: 1; height: 24px; background: var(--surface2); border-radius: 6px; display: flex; align-items: center; }
+.bar-fill { height: 100%; border-radius: 6px; transition: width 0.65s ease; min-width: 4px; }
+.bar-val { font-size: 12px; font-weight: 700; white-space: nowrap; padding-left: 8px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }
+.chip-row { padding-left: calc(110px + 11px); display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.chip {
+  font-size: 11px; padding: 2px 9px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--text3);
+}
+
+.anom-group { margin-bottom: 20px; }
+.anom-group + .anom-group { padding-top: 18px; border-top: 1px solid var(--border); }
+.anom-hd { font-size: 12px; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 9px; display: flex; align-items: center; gap: 8px; }
+.anom-cnt { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: var(--orange); font-size: 11px; padding: 1px 8px; border-radius: 10px; }
+.anom-hint { font-size: 12px; color: var(--accent2); margin-bottom: 10px; padding: 8px 12px; background: rgba(6,182,212,0.06); border-radius: 8px; border-left: 3px solid var(--accent2); }
+.anom-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.anom-chip { background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2); border-radius: 9px; padding: 7px 13px; display: flex; flex-direction: column; gap: 3px; }
+.anom-name   { font-size: 12px; font-weight: 800; }
+.anom-detail { font-size: 11px; color: var(--text2); }
+.anom-tip    { font-size: 11px; color: var(--accent2); }
+
+.phone-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.phone-table th { background: var(--surface2); padding: 9px 13px; text-align: left; font-size: 11px; font-weight: 800; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.phone-table td { padding: 9px 13px; border-bottom: 1px solid rgba(30,45,74,0.5); white-space: nowrap; }
+.phone-table tr:hover td { background: rgba(59,130,246,0.04); }
+.phone-ok      { color: var(--green); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.phone-missing { color: var(--red); font-size: 12px; font-weight: 600; }
+.tbl-scroll { overflow-x: auto; }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--text2); font-size: 14px; }
+.empty-icon { font-size: 34px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Auth overlay -->
+<div id="authOverlay">
+  <div class="spinner"></div>
+  <p style="color:var(--text2);font-size:14px;font-weight:600;letter-spacing:0.05em">🔒 驗證身分中...</p>
+</div>
+
+<!-- Top bar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-icon">📊</div>
+    <div>
+      <div class="topbar-title">新生資料分析</div>
+      <div class="topbar-sub" id="dataCountText">新莊國小 · 即時雲端分析</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="conn-wrap">
+      <span class="conn-dot" id="connDot"></span>
+      <span class="conn-text" id="connText">連線中</span>
+    </div>
+    <button class="btn-action btn-refresh" id="refreshBtn" onclick="loadAndRender()">🔄 重新整理</button>
+    <a href="dashboard.html" class="btn-action btn-back">← 回後台</a>
+  </div>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" data-tab="overview">📊 統計總覽</button>
+  <button class="tab" data-tab="language">🗣️ 語言選修</button>
+  <button class="tab" data-tab="anomaly">
+    ⚠️ 異常偵測
+    <span class="tab-badge" id="anomBadge">0</span>
+  </button>
+  <button class="tab" data-tab="phone">📞 聯絡電話</button>
+</div>
+
+<main>
+  <!-- Loading -->
+  <div class="loading-state" id="globalLoading">
+    <div class="spinner"></div>
+    <p>從雲端讀取資料中...</p>
+  </div>
+
+  <!-- 統計總覽 -->
+  <div id="panel-overview" class="panel">
+    <div class="stat-row" id="statCards"></div>
+    <div class="section">
+      <div class="section-hd">報到狀態分佈</div>
+      <div id="donutArea"></div>
+    </div>
+    <div class="section">
+      <div class="section-hd">🏫 前往他校明細</div>
+      <div id="schoolChart"></div>
+    </div>
+    <div class="section">
+      <div class="section-hd">✈️ 出國就讀明細</div>
+      <div id="abroadChart"></div>
+    </div>
+  </div>
+
+  <!-- 語言選修 -->
+  <div id="panel-language" class="panel">
+    <div class="section">
+      <div class="section-hd">選修本土語 / 未選修統計</div>
+      <div id="langChoiceChart"></div>
+    </div>
+    <div class="section">
+      <div class="section-hd">語言類別明細（含選修名單）</div>
+      <div id="langNameChart"></div>
+    </div>
+    <div class="section">
+      <div class="section-hd">🌏 外配子女父母國籍分佈</div>
+      <div id="foreignChart"></div>
+    </div>
+  </div>
+
+  <!-- 異常偵測 -->
+  <div id="panel-anomaly" class="panel">
+    <div class="section warn">
+      <div class="section-hd">⚠️ 資料缺漏與異常警示</div>
+      <div id="anomalyContent"></div>
+    </div>
+  </div>
+
+  <!-- 聯絡電話 -->
+  <div id="panel-phone" class="panel">
+    <div class="section">
+      <div class="section-hd">📞 緊急聯絡資訊速查（依班級、座號排序）</div>
+      <div class="tbl-scroll" id="phoneArea"></div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { auth, db } from './js/firebase-config.js';
+import { onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { collection, getDocs, doc, getDoc }
+  from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+// ── 欄位取值（容錯：去掉換行/空格後比對）──────────────
+function gk(row, key) {
+  const norm = key.replace(/[\s\n\r]/g, '');
+  const found = Object.keys(row).find(k => k.replace(/[\s\n\r]/g,'') === norm);
+  return found ? (row[found]||'').toString().trim() : '';
+}
+
+const COUNTRIES = ['美國','日本','加拿大','澳洲','英國','德國','法國','韓國',
+  '新加坡','紐西蘭','馬來西亞','泰國','越南','印尼','菲律賓','印度','中國','香港','澳門'];
+const SCHOOLS = ['國小','國中','小學','幼兒園','高中','高職','實小','實驗'];
+
+function classifyStatus(v) {
+  if (!v) return 'notyet';
+  if (/線上|已報到/i.test(v)) return 'online';
+  if (/^未報到$|^未$/.test(v)) return 'notyet';
+  if (COUNTRIES.some(k => v.includes(k))) return 'abroad';
+  if (SCHOOLS.some(k => v.includes(k))) return 'otherschool';
+  return 'notyet';
+}
+
+// 欄位名稱常數
+const C = {
+  status:'報到狀態', name:'姓名', cls:'班級', seat:'座號',
+  dadPhone:'父親手機號碼', momPhone:'母親手機號碼',
+  emergName:'緊急聯絡人姓名', emergRel:'緊急聯絡人與新生關係', emergPhone:'緊急聯絡人電話',
+  langChoice:'選修本土語', langName:'本土語言名稱',
+  indigenous:'原住民學生族別', foreignParent:'外配子女父母國籍',
+};
+
+let allData = [];
+
+// ── Auth ─────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = 'admin.html'; return; }
+  try {
+    const snap = await getDoc(doc(db, 'admins', user.email.toLowerCase()));
+    if (!snap.exists()) {
+      alert('此帳號不在白名單內');
+      await signOut(auth); window.location.href = 'admin.html'; return;
+    }
+    setConn(true);
+    document.getElementById('authOverlay').style.display = 'none';
+    loadAndRender();
+  } catch(e) {
+    setConn(false);
+    document.getElementById('authOverlay').innerHTML =
+      `<p style="color:var(--red);font-size:14px">⚠️ 驗證失敗，請<a href="admin.html" style="color:var(--accent)">重新登入</a></p>`;
+  }
+});
+
+function setConn(ok) {
+  document.getElementById('connDot').className = 'conn-dot ' + (ok ? 'ok' : 'err');
+  const t = document.getElementById('connText');
+  t.textContent = ok ? '雲端已連線' : '連線失敗';
+  t.style.color  = ok ? '#10b981' : '#ef4444';
+}
+
+// ── 主要載入函數 ─────────────────────────────────────
+window.loadAndRender = async () => {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.textContent = '讀取中...';
+  document.getElementById('globalLoading').style.display = 'block';
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+
+  try {
+    const qs = await getDocs(collection(db, 'students'));
+    allData = qs.docs.map(d => ({ _docId: d.id, ...d.data() }));
+
+    document.getElementById('globalLoading').style.display = 'none';
+    document.getElementById('dataCountText').textContent =
+      `新莊國小 · ${allData.length} 筆資料 · 即時雲端分析`;
+
+    renderOverview();
+    renderLanguage();
+    renderAnomalies();
+    renderPhone();
+
+    // 顯示目前選中的分頁
+    const activeTab = document.querySelector('.tab.active')?.dataset.tab || 'overview';
+    showPanel(activeTab);
+  } catch(e) {
+    console.error(e);
+    setConn(false);
+    document.getElementById('globalLoading').innerHTML =
+      `<div class="empty-icon">⚠️</div>
+       <p style="color:var(--red)">資料讀取失敗。請確認 Firebase 設定與網路連線。</p>`;
+  } finally {
+    btn.disabled = false; btn.textContent = '🔄 重新整理';
+  }
+};
+
+// ── 統計總覽 ─────────────────────────────────────────
+function renderOverview() {
+  const total = allData.length;
+  let online=0, notyet=0, abroad=0, school=0;
+  const aMap={}, aNames={}, sMap={}, sNames={};
+
+  allData.forEach(r => {
+    const v = gk(r, C.status);
+    const name = gk(r, C.name);
+    const cls = classifyStatus(v);
+    if (cls==='online')      { online++; }
+    else if (cls==='abroad') { abroad++; aMap[v]=(aMap[v]||0)+1; (aNames[v]=aNames[v]||[]).push(name); }
+    else if (cls==='otherschool') { school++; sMap[v]=(sMap[v]||0)+1; (sNames[v]=sNames[v]||[]).push(name); }
+    else { notyet++; }
+  });
+
+  const pct = n => total ? Math.round(n/total*100) : 0;
+
+  document.getElementById('statCards').innerHTML = [
+    { label:'新生總數',   val:total,  color:'#3b82f6', sub:'已從雲端讀取' },
+    { label:'已完成報到', val:online, color:'#10b981', sub:`占 ${pct(online)}%` },
+    { label:'尚未報到',   val:notyet, color:'#f59e0b', sub:`占 ${pct(notyet)}%` },
+    { label:'前往他校',   val:school, color:'#8b5cf6', sub:`占 ${pct(school)}%` },
+    { label:'出國就讀',   val:abroad, color:'#06b6d4', sub:`占 ${pct(abroad)}%` },
+  ].map(c => `
+    <div class="stat-card" style="border-color:${c.color}">
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-val" style="color:${c.color}">${c.val}</div>
+      <div class="stat-sub">${c.sub}</div>
+    </div>`).join('');
+
+  const statusMap = {};
+  if (online) statusMap['已報到'] = online;
+  if (notyet) statusMap['未報到'] = notyet;
+  if (school) statusMap['前往他校'] = school;
+  if (abroad) statusMap['出國就讀'] = abroad;
+  const colors = { '已報到':'#10b981','未報到':'#f59e0b','前往他校':'#8b5cf6','出國就讀':'#06b6d4' };
+  renderDonut('donutArea', statusMap, total, colors);
+
+  renderBarChart('schoolChart', sMap, sNames, total, ['#8b5cf6','#a78bfa','#7c3aed'], '無前往他校資料');
+  renderBarChart('abroadChart', aMap, aNames, total, ['#06b6d4','#22d3ee','#0891b2'], '無出國就讀資料');
+}
+
+// ── 語言選修 ─────────────────────────────────────────
+function renderLanguage() {
+  const total = allData.length;
+  const choiceMap={}, choiceNames={}, nameMap={}, nameNames={}, foreignMap={}, foreignNames={};
+
+  allData.forEach(r => {
+    const name = gk(r, C.name);
+
+    const ch = gk(r, C.langChoice) || '未填';
+    choiceMap[ch]=(choiceMap[ch]||0)+1;
+    (choiceNames[ch]=choiceNames[ch]||[]).push(name);
+
+    const ln = gk(r, C.langName);
+    if (ln) { nameMap[ln]=(nameMap[ln]||0)+1; (nameNames[ln]=nameNames[ln]||[]).push(name); }
+
+    const fp = gk(r, C.foreignParent);
+    if (fp) { foreignMap[fp]=(foreignMap[fp]||0)+1; (foreignNames[fp]=foreignNames[fp]||[]).push(name); }
+  });
+
+  renderBarChart('langChoiceChart', choiceMap, choiceNames, total,
+    ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444'], '無選修資料');
+  renderBarChart('langNameChart', nameMap, nameNames, total,
+    ['#06b6d4','#10b981','#8b5cf6','#f59e0b','#3b82f6','#ef4444'], '無語言名稱資料');
+
+  if (Object.keys(foreignMap).length > 0) {
+    renderBarChart('foreignChart', foreignMap, foreignNames, total,
+      ['#f59e0b','#ef4444','#06b6d4','#3b82f6'], '');
+  } else {
+    document.getElementById('foreignChart').innerHTML =
+      '<div class="empty"><div class="empty-icon">🌏</div>無外配子女資料</div>';
+  }
+}
+
+// ── 異常偵測 ─────────────────────────────────────────
+function renderAnomalies() {
+  const groups = [];
+
+  // 1. 選修本土語但語言名稱未填
+  const g1 = allData.filter(r => {
+    const ch = gk(r, C.langChoice);
+    const ln = gk(r, C.langName);
+    return ch && !['否','未選修','N','0',''].includes(ch) && !ln;
+  });
+  if (g1.length) groups.push({
+    title:'已選修本土語，但語言名稱未填',
+    hint:'請確認學生實際選修的語言種類（閩南語、越南語等），補齊後統計才準確',
+    icon:'📝',
+    students: g1.map(r => ({
+      name: gk(r,C.name),
+      detail:`選修欄：${gk(r,C.langChoice)||'—'}`,
+      tip: gk(r,C.foreignParent) ? `父母國籍：${gk(r,C.foreignParent)}` : '',
+    }))
+  });
+
+  // 2. 有外配國籍但語言名稱未填
+  const g2 = allData.filter(r => gk(r,C.foreignParent) && !gk(r,C.langName));
+  if (g2.length) groups.push({
+    title:'有外配子女國籍，但語言名稱未填',
+    hint:'這些學生可能應選修對應的新住民語，建議致電確認（如：菲律賓→他加祿語、越南→越南語）',
+    icon:'🌏',
+    students: g2.map(r => ({
+      name: gk(r,C.name),
+      detail:`父母國籍：${gk(r,C.foreignParent)}`,
+      tip: gk(r,C.langChoice) ? `已選：${gk(r,C.langChoice)}` : '語言選修欄也未填',
+    }))
+  });
+
+  // 3. 有原住民族別但語言名稱未填
+  const g3 = allData.filter(r => gk(r,C.indigenous) && !gk(r,C.langName));
+  if (g3.length) groups.push({
+    title:'有填原住民族別，但語言名稱未填',
+    hint:'這些學生可能應選修原住民族語，建議確認',
+    icon:'🪶',
+    students: g3.map(r => ({
+      name: gk(r,C.name),
+      detail:`族別：${gk(r,C.indigenous)}`,
+      tip: gk(r,C.langChoice) ? `已選：${gk(r,C.langChoice)}` : '語言選修欄也未填',
+    }))
+  });
+
+  // 4. 父母與緊急電話全空白
+  const g4 = allData.filter(r => !gk(r,C.dadPhone) && !gk(r,C.momPhone) && !gk(r,C.emergPhone));
+  if (g4.length) groups.push({
+    title:'父母與緊急聯絡電話全部未填',
+    hint:'開學遇突發狀況時無法聯絡，請盡速補齊',
+    icon:'📞',
+    students: g4.map(r => ({
+      name: gk(r,C.name),
+      detail:`班級：${gk(r,C.cls)||'未編'}`,
+      tip: '',
+    }))
+  });
+
+  // 5. 外配國籍與語言明顯不符
+  const g5 = allData.filter(r => {
+    const fp = gk(r,C.foreignParent);
+    const ln = gk(r,C.langName);
+    if (!fp || !ln) return false;
+    const isVN = fp.includes('越南') && !ln.includes('越南');
+    const isPH = (fp.includes('菲律賓')||fp.includes('Philippines')) && !ln.includes('菲律賓') && !ln.includes('他加祿');
+    const isID = fp.includes('印尼') && !ln.includes('印尼');
+    return isVN || isPH || isID;
+  });
+  if (g5.length) groups.push({
+    title:'外配國籍與選修語言可能不符',
+    hint:'例如父母是越南籍但選了閩南語，請致電確認是否選錯',
+    icon:'🔍',
+    students: g5.map(r => ({
+      name: gk(r,C.name),
+      detail:`父母國籍：${gk(r,C.foreignParent)}`,
+      tip:`已選語言：${gk(r,C.langName)}`,
+    }))
+  });
+
+  // 更新 badge
+  const totalAnomCount = groups.reduce((s,g) => s+g.students.length, 0);
+  const badge = document.getElementById('anomBadge');
+  badge.textContent = totalAnomCount;
+  badge.className = 'tab-badge' + (totalAnomCount > 0 ? ' show' : '');
+
+  const content = document.getElementById('anomalyContent');
+  if (!groups.length) {
+    content.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><p>沒有發現異常資料，資料品質良好！</p></div>';
+    return;
+  }
+  content.innerHTML = groups.map(g => `
+    <div class="anom-group">
+      <div class="anom-hd">${g.icon} ${g.title} <span class="anom-cnt">${g.students.length} 人</span></div>
+      <div class="anom-hint">💡 ${g.hint}</div>
+      <div class="anom-chips">
+        ${g.students.map(s => `
+          <div class="anom-chip">
+            <span class="anom-name">${s.name||'（未知）'}</span>
+            <span class="anom-detail">${s.detail}</span>
+            ${s.tip ? `<span class="anom-tip">${s.tip}</span>` : ''}
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+// ── 聯絡電話速查 ─────────────────────────────────────
+function renderPhone() {
+  const sorted = [...allData].sort((a,b) => {
+    const ca = gk(a,C.cls)||'ZZZ', cb = gk(b,C.cls)||'ZZZ';
+    if (ca!==cb) return ca.localeCompare(cb,'zh-Hant');
+    return (parseInt(gk(a,C.seat))||999) - (parseInt(gk(b,C.seat))||999);
+  });
+
+  const fp = v => v ? `<span class="phone-ok">${v}</span>` : `<span class="phone-missing">未填</span>`;
+
+  document.getElementById('phoneArea').innerHTML = `
+    <table class="phone-table">
+      <thead><tr>
+        <th>班級</th><th>座號</th><th>姓名</th>
+        <th>父親手機</th><th>母親手機</th><th>緊急電話</th><th>緊急聯絡人</th>
+      </tr></thead>
+      <tbody>${sorted.map(r => `<tr>
+        <td style="font-weight:700">${gk(r,C.cls)||'—'}</td>
+        <td style="text-align:center;color:var(--text2)">${gk(r,C.seat)||'—'}</td>
+        <td style="font-weight:700">${gk(r,C.name)||'—'}</td>
+        <td>${fp(gk(r,C.dadPhone))}</td>
+        <td>${fp(gk(r,C.momPhone))}</td>
+        <td>${fp(gk(r,C.emergPhone))}</td>
+        <td style="font-size:12px;color:var(--text3)">${gk(r,C.emergName)||'—'}<br>${gk(r,C.emergRel)||''}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// ── Donut SVG ─────────────────────────────────────────
+function renderDonut(id, map, total, colorMap) {
+  const entries = Object.entries(map);
+  if (!entries.length) {
+    document.getElementById(id).innerHTML = '<div class="empty"><div class="empty-icon">📊</div>無資料</div>'; return;
+  }
+  const r=56,cx=72,cy=72,sw=22, circ=2*Math.PI*r;
+  let offset=0, paths='', legend='';
+  const def=['#10b981','#f59e0b','#8b5cf6','#06b6d4','#3b82f6'];
+  entries.forEach(([k,v],i) => {
+    const pct=v/total, len=pct*circ;
+    const color=colorMap?.[k]||def[i%def.length];
+    paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${sw}"
+      stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="${-offset}"
+      transform="rotate(-90 ${cx} ${cy})" opacity="0.9"/>`;
+    offset += len;
+    legend += `<div class="legend-row">
+      <div class="legend-dot" style="background:${color}"></div>
+      <span>${k}</span>
+      <span class="legend-val" style="color:${color}">${v}</span>
+      <span class="legend-pct">(${Math.round(pct*100)}%)</span>
+    </div>`;
+  });
+  document.getElementById(id).innerHTML = `
+    <div class="donut-wrap">
+      <svg width="144" height="144" viewBox="0 0 144 144">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="${sw}"/>
+        ${paths}
+        <text x="${cx}" y="${cy}" text-anchor="middle" dy="0.35em" fill="var(--text)"
+          font-size="20" font-weight="900" font-family="JetBrains Mono,monospace">${total}</text>
+      </svg>
+      <div class="donut-legend">${legend}</div>
+    </div>`;
+}
+
+// ── 長條圖 ────────────────────────────────────────────
+function renderBarChart(id, map, namesMap, total, colors, emptyMsg) {
+  const el = document.getElementById(id);
+  const entries = Object.entries(map).sort((a,b) => b[1]-a[1]);
+  if (!entries.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📊</div>${emptyMsg||'無資料'}</div>`; return;
+  }
+  const max = Math.max(...entries.map(e=>e[1]));
+  el.innerHTML = entries.map(([k,v],i) => {
+    const pct = max ? Math.round(v/max*76) : 0;
+    const color = colors[i%colors.length];
+    const chips = (namesMap?.[k]||[]).map(n=>`<span class="chip">${n}</span>`).join('');
+    return `<div class="bar-item">
+      <div class="bar-row">
+        <div class="bar-lbl">${k}</div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${color}77,${color})"></div>
+          <span class="bar-val" style="color:${color}">${v} 人 (${Math.round(v/total*100)}%)</span>
+        </div>
+      </div>
+      ${chips ? `<div class="chip-row">${chips}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── Tab 切換 ─────────────────────────────────────────
+function showPanel(tab) {
+  document.querySelectorAll('.panel').forEach(p =>
+    p.classList.toggle('active', p.id === 'panel-'+tab));
+}
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    showPanel(btn.dataset.tab);
+  });
+});
+</script>
+</body>
+</html>
