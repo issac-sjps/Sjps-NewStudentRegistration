@@ -6,153 +6,212 @@
   <title>新生報到管理後台 — 新莊國小</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Chart.js 4 from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'system-ui', sans-serif; }
-    .panel { display: none; }
-    .panel.active { display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
-    .nav-btn { display: block; width: 100%; text-align: left; padding: 10px 14px;
-      border-radius: 10px; font-size: 14px; color: #94a3b8; transition: all 0.15s; }
+    body { font-family: system-ui, 'Noto Sans TC', sans-serif; }
+
+    /* ── Nav ── */
+    .panel { display: none; height: 100%; overflow-y: auto; }
+    .panel.active { display: flex; flex-direction: column; }
+    .nav-btn {
+      display: block; width: 100%; text-align: left;
+      padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; color: #94a3b8;
+      background: none; border: none; cursor: pointer;
+      transition: all 0.15s;
+    }
     .nav-btn:hover { background: #334155; color: white; }
     .nav-btn.active { background: #334155; border-left: 3px solid #60a5fa; color: white; font-weight: 700; }
-    .stat-card { background: white; border-radius: 20px; padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-bottom: 4px solid; }
-    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px;
-      font-size: 11px; font-weight: 700; border: 1px solid; }
-    .badge-online { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-    .badge-pending { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
-    .badge-abroad { background: #fef9c3; color: #854d0e; border-color: #fef08a; }
-    .badge-private { background: #fae8ff; color: #86198f; border-color: #f5d0fe; }
-    .badge-other { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+
+    /* ── Table ── */
     .tbl-wrap { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 320px); }
     table { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 13px; }
-    th { position: sticky; top: 0; background: #f8fafc; padding: 10px 14px;
-      text-align: left; white-space: nowrap; border-bottom: 2px solid #e2e8f0;
-      cursor: pointer; font-size: 12px; font-weight: 700; color: #64748b;
-      text-transform: uppercase; letter-spacing: 0.04em; }
+    th {
+      position: sticky; top: 0; background: #f8fafc;
+      padding: 10px 14px; text-align: left; white-space: nowrap;
+      border-bottom: 2px solid #e2e8f0; cursor: pointer;
+      font-size: 11px; font-weight: 800; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
     th:hover { background: #f1f5f9; }
     td { padding: 10px 14px; border-bottom: 1px solid #f8fafc; white-space: nowrap; }
-    tr:hover td { background: #eff6ff; }
-    .col-btn { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700;
-      border: 1px solid; cursor: pointer; transition: all 0.15s; }
-    .col-btn.on { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-    .col-btn.off { background: #f8fafc; color: #94a3b8; border-color: #e2e8f0; }
-    #editModal { display: none; position: fixed; inset: 0; z-index: 999;
-      background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+    tr:hover td { background: #eff6ff; cursor: pointer; }
+
+    /* ── Status badges ── */
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; border: 1px solid;
+    }
+    .badge-online  { background:#dcfce7; color:#166534; border-color:#bbf7d0; }
+    .badge-pending { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+    .badge-abroad  { background:#fef9c3; color:#854d0e; border-color:#fef08a; }
+    .badge-private { background:#fae8ff; color:#86198f; border-color:#f5d0fe; }
+    .badge-other   { background:#ffedd5; color:#9a3412; border-color:#fed7aa; }
+
+    /* ── Col toggle ── */
+    .col-btn {
+      padding: 3px 11px; border-radius: 999px; font-size: 11px; font-weight: 700;
+      border: 1px solid; cursor: pointer; transition: all 0.15s;
+    }
+    .col-btn.on  { background:#dbeafe; color:#1e40af; border-color:#bfdbfe; }
+    .col-btn.off { background:#f8fafc; color:#94a3b8; border-color:#e2e8f0; }
+
+    /* ── Edit Modal ── */
+    #editModal {
+      display: none; position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,0.55); align-items: center; justify-content: center;
+    }
     #editModal.open { display: flex; }
-    .modal-body { background: white; border-radius: 24px; padding: 32px;
-      width: 95%; max-width: 900px; max-height: 90vh; overflow-y: auto; }
-    .form-field label { display: block; font-size: 10px; font-weight: 800;
-      color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .modal-card {
+      background: white; border-radius: 20px; padding: 28px;
+      width: 95%; max-width: 860px; max-height: 90vh; overflow-y: auto;
+    }
+    .form-field label {
+      display: block; font-size: 10px; font-weight: 800; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
+    }
     .form-field input, .form-field select {
       width: 100%; border: 2px solid #e2e8f0; border-radius: 10px;
-      padding: 8px 12px; font-size: 13px; outline: none; }
+      padding: 8px 12px; font-size: 13px; outline: none;
+      transition: border-color 0.2s;
+    }
     .form-field input:focus, .form-field select:focus { border-color: #3b82f6; }
-    #authOverlay { position: fixed; inset: 0; background: #0f172a; z-index: 9999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
-    .lamp { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .lamp-ok { background: #22c55e; box-shadow: 0 0 8px #22c55e;
-      animation: blink 2s ease-in-out infinite; }
-    .lamp-err { background: #ef4444; }
-    .lamp-wait { background: #94a3b8; }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Auth overlay ── */
+    #authOverlay {
+      position: fixed; inset: 0; background: #0f172a; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Add student form ── */
+    .add-input {
+      width: 100%; background: #0f172a; border: 2px solid #334155;
+      color: white; border-radius: 10px; padding: 10px 14px;
+      font-size: 14px; outline: none; transition: border-color 0.2s;
+    }
+    .add-input:focus { border-color: #3b82f6; }
+    .add-input::placeholder { color: #475569; }
+    .add-label {
+      display: block; font-size: 11px; font-weight: 800; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
+    }
+    .add-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 22px;
+    }
+    .tag-ok  { background:rgba(34,197,94,0.12);  color:#22c55e; border:1px solid rgba(34,197,94,0.3);  }
+    .tag-dup { background:rgba(245,166,35,0.12); color:#f5a623; border:1px solid rgba(245,166,35,0.3); }
+    .tag-err { background:rgba(239,68,68,0.12);  color:#ef4444; border:1px solid rgba(239,68,68,0.3);  }
+    .status-tag {
+      display:inline-flex; align-items:center; padding:3px 10px;
+      border-radius:999px; font-size:11px; font-weight:700;
+    }
+
+    /* ── Chart container — must have explicit height ── */
+    .chart-container { position: relative; height: 320px; width: 100%; }
   </style>
 </head>
 <body class="bg-slate-100 flex h-screen overflow-hidden">
 
-  <!-- 驗證遮罩 -->
+  <!-- Auth overlay -->
   <div id="authOverlay">
-    <div style="width:48px;height:48px;border:3px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px"></div>
-    <p style="font-size:18px;font-weight:900;letter-spacing:0.1em">🔒 安全驗證中...</p>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    <div style="width:44px;height:44px;border:3px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:14px"></div>
+    <p style="font-size:16px;font-weight:700;letter-spacing:0.06em">🔒 安全驗證中...</p>
   </div>
 
-  <!-- 編輯 Modal -->
+  <!-- Edit modal -->
   <div id="editModal">
-    <div class="modal-body">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #f1f5f9">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #f1f5f9">
         <div>
-          <h3 style="font-size:20px;font-weight:900;color:#1e293b">學生完整資料</h3>
-          <p id="editModalId" style="font-size:12px;color:#94a3b8;font-family:monospace;margin-top:2px"></p>
+          <h3 style="font-size:18px;font-weight:900;color:#1e293b">學生完整資料編輯</h3>
+          <p id="editModalSub" style="font-size:12px;color:#94a3b8;margin-top:2px;font-family:monospace"></p>
         </div>
-        <button onclick="closeModal()"
-          style="background:#f1f5f9;border:none;padding:8px 16px;border-radius:10px;font-weight:700;cursor:pointer">✕ 關閉</button>
+        <button onclick="closeModal()" style="background:#f1f5f9;border:none;padding:8px 16px;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px">✕ 關閉</button>
       </div>
-      <div id="editFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
-      <div style="display:flex;gap:12px;margin-top:24px;padding-top:20px;border-top:2px solid #f1f5f9">
-        <button onclick="closeModal()"
-          style="flex:1;padding:14px;background:#f1f5f9;border:none;border-radius:14px;font-weight:700;cursor:pointer">取消</button>
-        <button id="saveBtn"
-          style="flex:2;padding:14px;background:#2563eb;color:white;border:none;border-radius:14px;font-weight:900;cursor:pointer;font-size:16px">
+      <div id="editFields" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px"></div>
+      <div style="display:flex;gap:12px;margin-top:22px;padding-top:18px;border-top:2px solid #f1f5f9">
+        <button onclick="closeModal()" style="flex:1;padding:13px;background:#f1f5f9;border:none;border-radius:12px;font-weight:700;cursor:pointer">取消</button>
+        <button id="saveBtn" style="flex:2;padding:13px;background:#2563eb;color:white;border:none;border-radius:12px;font-weight:900;cursor:pointer;font-size:15px">
           儲存變更
         </button>
       </div>
     </div>
   </div>
 
-  <!-- 側邊欄 -->
-  <aside style="width:240px;background:#1e293b;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,0.3)">
-    <div style="padding:20px;border-bottom:1px solid #334155;text-align:center">
-      <div style="font-size:22px;font-weight:900;color:white;letter-spacing:-0.02em">🏫 新莊國小</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:4px">管理後台</div>
+  <!-- Sidebar -->
+  <aside style="width:240px;background:#1e293b;display:flex;flex-direction:column;flex-shrink:0;box-shadow:4px 0 20px rgba(0,0,0,0.25)">
+    <div style="padding:18px 20px;border-bottom:1px solid #334155;text-align:center">
+      <div style="font-size:20px;font-weight:900;color:white">🏫 新莊國小</div>
+      <div style="font-size:11px;color:#64748b;margin-top:3px">新生報到管理後台</div>
       <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px">
-        <span class="lamp lamp-wait" id="connLamp"></span>
-        <span id="connText" style="font-size:11px;color:#64748b">連線檢查中</span>
+        <span id="connLamp" style="width:9px;height:9px;border-radius:50%;background:#475569;display:inline-block"></span>
+        <span id="connText" style="font-size:11px;color:#64748b">連線中</span>
       </div>
     </div>
-    <nav style="flex:1;padding:12px;overflow-y:auto">
+
+    <nav style="flex:1;padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:3px">
       <button class="nav-btn active" data-target="statsPanel">📊 報到統計</button>
       <button class="nav-btn" data-target="searchPanel">🔍 學生查詢</button>
       <button class="nav-btn" data-target="listPanel">🗂️ 名冊管理</button>
-      <button class="nav-btn" data-target="langPanel">🗣️ 本土語統計</button>
+      <button class="nav-btn" data-target="langPanel">🗣️ 語言統計</button>
       <button class="nav-btn" data-target="classPanel">✏️ 編班比對</button>
-      <button class="nav-btn" data-target="importPanel">📥 匯入重置</button>
-      <div style="border-top:1px solid #334155;margin:12px 0;padding-top:12px">
+      <button class="nav-btn" data-target="addPanel">➕ 手動新增名單</button>
+      <button class="nav-btn" data-target="importPanel">📥 Excel 匯入</button>
+
+      <div style="border-top:1px solid #334155;margin:10px 0;padding-top:10px;display:flex;flex-direction:column;gap:3px">
         <a href="index.html" class="nav-btn" style="text-decoration:none;display:block">🏠 報到首頁</a>
+        <a href="analyze.html" class="nav-btn" style="text-decoration:none;display:block;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.25);color:#93c5fd">📊 資料分析頁面</a>
         <a href="admin.html" class="nav-btn" style="text-decoration:none;display:block">⚙️ 白名單設定</a>
-        <button class="nav-btn" onclick="logout()" style="color:#f87171">🚪 登出</button>
+        <button class="nav-btn" onclick="logout()" style="color:#f87171;text-align:left">🚪 安全登出</button>
       </div>
     </nav>
   </aside>
 
-  <!-- 主內容 -->
+  <!-- Main -->
   <main style="flex:1;overflow:hidden;display:flex;flex-direction:column">
 
-    <!-- 統計分頁 -->
-    <div id="statsPanel" class="panel active" style="padding:32px;gap:24px">
+    <!-- 📊 統計 -->
+    <div id="statsPanel" class="panel active" style="padding:28px;gap:20px;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h2 style="font-size:28px;font-weight:900">報到統計概況</h2>
-        <button onclick="refreshData()" style="background:white;border:1px solid #e2e8f0;padding:8px 16px;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px">
-          🔄 更新資料
-        </button>
+        <h2 style="font-size:24px;font-weight:900">報到統計概況</h2>
+        <button onclick="refreshData()" style="background:white;border:1px solid #e2e8f0;padding:8px 16px;border-radius:10px;font-weight:600;cursor:pointer;font-size:13px">🔄 更新</button>
       </div>
-      <div id="statCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;height:360px">
-        <div style="background:white;border-radius:20px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-          <p style="font-weight:800;font-size:13px;color:#64748b;margin-bottom:12px">報到狀態比例</p>
-          <div style="position:relative;height:calc(100% - 30px)"><canvas id="pieChart"></canvas></div>
+
+      <div id="statCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+        <div style="background:white;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+          <p style="font-weight:800;font-size:13px;color:#64748b;margin-bottom:14px">報到狀態比例</p>
+          <!-- 固定高度容器，解決圓餅圖無限放大問題 -->
+          <div class="chart-container">
+            <canvas id="pieChart"></canvas>
+          </div>
         </div>
-        <div style="background:white;border-radius:20px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-          <p style="font-weight:800;font-size:13px;color:#64748b;margin-bottom:12px">各班人數</p>
-          <div style="position:relative;height:calc(100% - 30px)"><canvas id="barChart"></canvas></div>
+        <div style="background:white;border-radius:16px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+          <p style="font-weight:800;font-size:13px;color:#64748b;margin-bottom:14px">各班人數</p>
+          <div class="chart-container">
+            <canvas id="barChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 學生查詢分頁 -->
-    <div id="searchPanel" class="panel" style="padding:32px;align-items:center">
-      <div style="background:white;border-radius:28px;padding:40px;width:100%;max-width:600px;box-shadow:0 4px 20px rgba(0,0,0,0.08);text-align:center">
-        <div style="font-size:48px;margin-bottom:12px">🔍</div>
-        <h3 style="font-size:24px;font-weight:900;margin-bottom:6px">學生快速查詢</h3>
-        <p style="color:#94a3b8;font-size:14px;margin-bottom:28px">輸入學生姓名或身分證字號</p>
+    <!-- 🔍 查詢 -->
+    <div id="searchPanel" class="panel" style="padding:28px;align-items:center">
+      <div style="background:white;border-radius:24px;padding:36px;width:100%;max-width:580px;box-shadow:0 4px 20px rgba(0,0,0,0.07);text-align:center">
+        <div style="font-size:44px;margin-bottom:12px">🔍</div>
+        <h3 style="font-size:22px;font-weight:900;margin-bottom:6px">學生快速查詢</h3>
+        <p style="color:#94a3b8;font-size:14px;margin-bottom:24px">輸入姓名或身分證字號</p>
         <div style="display:flex;gap:8px;margin-bottom:20px">
           <input type="text" id="searchInput"
-            style="flex:1;border:2px solid #e2e8f0;border-radius:12px;padding:14px;font-size:16px;outline:none"
-            placeholder="例：王小明 或 A123456789"
+            style="flex:1;border:2px solid #e2e8f0;border-radius:12px;padding:13px;font-size:15px;outline:none"
+            placeholder="王小明 或 A123456789"
             onkeydown="if(event.key==='Enter')searchStudent()">
           <button onclick="searchStudent()"
-            style="background:#2563eb;color:white;border:none;padding:14px 24px;border-radius:12px;font-weight:900;cursor:pointer;font-size:16px">
+            style="background:#2563eb;color:white;border:none;padding:13px 22px;border-radius:12px;font-weight:900;cursor:pointer;font-size:15px">
             搜尋
           </button>
         </div>
@@ -160,24 +219,24 @@
       </div>
     </div>
 
-    <!-- 名冊管理分頁 -->
-    <div id="listPanel" class="panel" style="padding:24px;gap:16px">
-      <div style="background:white;border-radius:16px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+    <!-- 🗂️ 名冊 -->
+    <div id="listPanel" class="panel" style="padding:20px;gap:14px">
+      <div style="background:white;border-radius:14px;padding:14px 18px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <h2 style="font-size:20px;font-weight:900">學生名冊</h2>
+          <h2 style="font-size:18px;font-weight:900">學生名冊總表</h2>
           <div style="display:flex;gap:8px">
             <input type="text" id="listSearch" placeholder="即時搜尋..."
               style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:13px;outline:none;width:180px"
-              oninput="filterTable()">
+              oninput="renderTable()">
             <button onclick="exportExcel()"
               style="background:#059669;color:white;border:none;padding:8px 16px;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px">
-              ⬇ 匯出 Excel
+              ⬇ Excel
             </button>
           </div>
         </div>
-        <div id="colToggleArea" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div id="colToggles" style="display:flex;flex-wrap:wrap;gap:5px"></div>
       </div>
-      <div style="background:white;border-radius:16px;flex:1;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
+      <div style="background:white;border-radius:14px;flex:1;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
         <div class="tbl-wrap">
           <table>
             <thead id="tableHead"></thead>
@@ -187,39 +246,39 @@
       </div>
     </div>
 
-    <!-- 本土語統計分頁 -->
-    <div id="langPanel" class="panel" style="padding:32px;gap:20px">
-      <h2 style="font-size:28px;font-weight:900">🗣️ 本土語言選修統計</h2>
-      <div id="langCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px"></div>
-      <div style="background:white;border-radius:20px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-        <p style="font-weight:800;margin-bottom:16px">選修名冊（依語言分組）</p>
+    <!-- 🗣️ 語言 -->
+    <div id="langPanel" class="panel" style="padding:28px;gap:18px;overflow-y:auto">
+      <h2 style="font-size:22px;font-weight:900">🗣️ 本土語言選修統計</h2>
+      <div id="langCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px"></div>
+      <div style="background:white;border-radius:16px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+        <p style="font-weight:800;margin-bottom:14px">選修名冊（依語言分組）</p>
         <div id="langGroups"></div>
       </div>
     </div>
 
-    <!-- 編班比對分頁 -->
-    <div id="classPanel" class="panel" style="padding:32px">
-      <div style="background:white;border-radius:24px;padding:32px;max-width:900px;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
-        <h2 style="font-size:22px;font-weight:900;color:#2563eb;margin-bottom:6px">✏️ 編班自動比對</h2>
-        <p style="color:#94a3b8;font-size:13px;margin-bottom:24px">貼上名條資料，系統自動比對姓名並寫入班級座號</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+    <!-- ✏️ 編班 -->
+    <div id="classPanel" class="panel" style="padding:28px;overflow-y:auto">
+      <div style="background:white;border-radius:20px;padding:28px;max-width:860px;box-shadow:0 2px 10px rgba(0,0,0,0.07)">
+        <h2 style="font-size:20px;font-weight:900;color:#2563eb;margin-bottom:6px">✏️ 編班自動比對</h2>
+        <p style="color:#94a3b8;font-size:13px;margin-bottom:22px">貼上名條，系統自動依姓名比對並寫入班級座號</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
           <div>
             <label style="font-weight:700;font-size:13px;display:block;margin-bottom:8px">目標班級</label>
             <input type="text" id="classInput" placeholder="例：101"
-              style="width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:16px;outline:none;font-size:14px">
+              style="width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:14px;outline:none;font-size:14px">
             <label style="font-weight:700;font-size:13px;display:block;margin-bottom:8px">名條格式（座號 姓名）</label>
             <textarea id="classNameList" rows="12"
               style="width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:12px;font-family:monospace;font-size:12px;outline:none;resize:none"
-              placeholder="01 王大同&#10;02 李小美&#10;03 張志明"></textarea>
+              placeholder="01 王大同&#10;02 李小美"></textarea>
             <button onclick="runMatch()"
-              style="width:100%;margin-top:12px;background:#2563eb;color:white;border:none;padding:14px;border-radius:12px;font-weight:900;font-size:16px;cursor:pointer">
+              style="width:100%;margin-top:12px;background:#2563eb;color:white;border:none;padding:14px;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer">
               執行比對並寫入
             </button>
           </div>
           <div>
             <label style="font-weight:700;font-size:13px;display:block;margin-bottom:8px">執行記錄</label>
             <div id="matchLog"
-              style="background:#0f172a;color:#4ade80;font-family:monospace;font-size:11px;padding:16px;border-radius:12px;height:360px;overflow-y:auto;line-height:1.8">
+              style="background:#0f172a;color:#4ade80;font-family:monospace;font-size:11px;padding:16px;border-radius:12px;height:360px;overflow-y:auto;line-height:1.9">
               > 等待指令...
             </div>
           </div>
@@ -227,23 +286,95 @@
       </div>
     </div>
 
-    <!-- 匯入重置分頁 -->
-    <div id="importPanel" class="panel" style="padding:32px;gap:20px">
-      <h2 style="font-size:28px;font-weight:900">📥 資料管理</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:900px">
-        <!-- 建立測試生 -->
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:24px">
-          <h3 style="font-weight:800;color:#1d4ed8;margin-bottom:8px">🛠️ 測試模式</h3>
-          <p style="font-size:13px;color:#3b82f6;margin-bottom:16px">建立可重複報到的測試學生</p>
-          <p style="font-size:12px;color:#64748b;margin-bottom:12px">身分證：T123456789<br>生日：2017-01-01</p>
-          <button onclick="createTestStudent()"
-            style="width:100%;background:#2563eb;color:white;border:none;padding:12px;border-radius:12px;font-weight:700;cursor:pointer">
-            建立測試生
+    <!-- ➕ 手動新增名單 -->
+    <div id="addPanel" class="panel" style="padding:28px;gap:18px;overflow-y:auto;background:#0a0e1a">
+      <div>
+        <h2 style="font-size:22px;font-weight:900;color:white">➕ 手動新增學生名單</h2>
+        <p style="font-size:13px;color:#64748b;margin-top:4px">補充高雄市名單與教育局名單的落差</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+
+        <!-- 單筆新增 -->
+        <div class="add-card">
+          <h3 style="font-size:15px;font-weight:800;color:#60a5fa;margin-bottom:18px">單筆新增</h3>
+          <div style="display:flex;flex-direction:column;gap:13px">
+            <div>
+              <label class="add-label">姓名 <span style="color:#ef4444">*</span></label>
+              <input type="text" id="add_name" class="add-input" placeholder="例：王小明">
+            </div>
+            <div>
+              <label class="add-label">身分證字號 <span style="color:#ef4444">*</span></label>
+              <input type="text" id="add_id" class="add-input" placeholder="例：A123456789" maxlength="10"
+                oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div>
+              <label class="add-label">出生日期 <span style="color:#ef4444">*</span></label>
+              <input type="text" id="add_birth" class="add-input" placeholder="民國 1080101 或 西元 20190101">
+              <span style="font-size:11px;color:#475569;margin-top:3px;display:block">7碼民國或8碼西元皆可</span>
+            </div>
+            <div>
+              <label class="add-label">報到狀態</label>
+              <select id="add_status" class="add-input">
+                <option value="未報到">未報到（預設）</option>
+                <option value="已報到">已報到</option>
+                <option value="出國">出國</option>
+                <option value="私校">就讀私校</option>
+              </select>
+            </div>
+            <div>
+              <label class="add-label">備註（選填）</label>
+              <input type="text" id="add_note" class="add-input" placeholder="例：教育局名單補充">
+            </div>
+          </div>
+          <button onclick="addSingleStudent()"
+            style="width:100%;margin-top:18px;background:#2563eb;color:white;border:none;padding:13px;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px">
+            新增這筆學生
           </button>
+          <div id="addMsg" style="display:none;margin-top:10px;padding:10px;border-radius:8px;font-size:13px;font-weight:600;text-align:center"></div>
         </div>
-        <!-- 匯入 Excel -->
-        <div style="background:white;border-radius:20px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,0.06)">
-          <h3 style="font-weight:800;margin-bottom:8px">Excel 大宗匯入</h3>
+
+        <!-- 批次貼上 -->
+        <div class="add-card">
+          <h3 style="font-size:15px;font-weight:800;color:#38e8c0;margin-bottom:10px">批次貼上新增</h3>
+          <p style="font-size:12px;color:#64748b;margin-bottom:12px">
+            每行一筆，格式：<code style="background:#0f172a;padding:2px 6px;border-radius:4px;font-size:11px">姓名 身分證字號 出生日期</code>
+          </p>
+          <textarea id="batchInput" rows="8"
+            style="width:100%;background:#0f172a;border:2px solid #334155;color:white;border-radius:10px;padding:12px;font-family:monospace;font-size:12px;outline:none;resize:vertical;line-height:1.8"
+            placeholder="王小明 A123456789 1080101&#10;李大華 B234567890 20100202&#10;（空格或 Tab 分隔皆可）"></textarea>
+          <button onclick="batchAdd()"
+            style="width:100%;margin-top:12px;background:#0d9488;color:white;border:none;padding:13px;border-radius:12px;font-weight:700;cursor:pointer;font-size:14px">
+            批次匯入
+          </button>
+          <div id="batchLog" style="margin-top:12px;max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:5px"></div>
+        </div>
+      </div>
+
+      <!-- 現有名單速覽 -->
+      <div class="add-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="font-size:15px;font-weight:800;color:#a78bfa">
+            📋 現有名單速覽
+            <span id="addListCount" style="font-size:12px;color:#64748b;font-weight:400;margin-left:8px"></span>
+          </h3>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="addListSearch" class="add-input" placeholder="搜尋..."
+              style="max-width:200px;padding:7px 12px;font-size:12px"
+              oninput="renderAddList()">
+            <button onclick="loadData()" style="background:#334155;color:#94a3b8;border:none;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px">🔄</button>
+          </div>
+        </div>
+        <div id="addStudentList" style="display:flex;flex-direction:column;gap:5px;max-height:360px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <!-- 📥 匯入 -->
+    <div id="importPanel" class="panel" style="padding:28px;gap:18px;overflow-y:auto">
+      <h2 style="font-size:22px;font-weight:900">📥 資料管理</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:860px">
+        <div style="background:white;border-radius:16px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+          <h3 style="font-weight:800;margin-bottom:6px">Excel 大宗匯入</h3>
           <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">上傳含新生資料的 Excel 檔案</p>
           <input type="file" id="importFile" accept=".xlsx,.xls"
             style="display:block;width:100%;margin-bottom:12px;font-size:13px">
@@ -253,17 +384,18 @@
           </button>
           <p id="importStatus" style="margin-top:10px;font-size:13px;font-weight:600;text-align:center"></p>
         </div>
-      </div>
-      <!-- 重置 -->
-      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:20px;padding:24px;max-width:440px">
-        <h3 style="font-weight:800;color:#dc2626;margin-bottom:8px">⚠️ 年度資料重置</h3>
-        <p style="font-size:13px;color:#94a3b8;margin-bottom:16px">清空資料庫所有學生記錄（不可復原）</p>
-        <input type="text" id="resetInput" placeholder="請輸入「確認清空」"
-          style="width:100%;border:2px solid #fecaca;border-radius:10px;padding:10px;margin-bottom:10px;outline:none;text-align:center;font-weight:700">
-        <button id="resetBtn" disabled onclick="resetData()"
-          style="width:100%;background:#dc2626;color:white;border:none;padding:12px;border-radius:12px;font-weight:700;cursor:pointer;opacity:0.3">
-          確認清空所有資料
-        </button>
+
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:16px;padding:22px">
+          <h3 style="font-weight:800;color:#dc2626;margin-bottom:6px">⚠️ 年度資料重置</h3>
+          <p style="font-size:13px;color:#94a3b8;margin-bottom:14px">清空資料庫所有學生（不可復原）</p>
+          <input type="text" id="resetInput" placeholder="請輸入「確認清空」"
+            style="width:100%;border:2px solid #fecaca;border-radius:10px;padding:10px;margin-bottom:10px;outline:none;text-align:center;font-weight:700"
+            oninput="checkResetInput()">
+          <button id="resetBtn" disabled onclick="resetData()"
+            style="width:100%;background:#dc2626;color:white;border:none;padding:12px;border-radius:12px;font-weight:700;cursor:pointer;opacity:0.25">
+            確認刪除所有資料
+          </button>
+        </div>
       </div>
     </div>
 
@@ -272,11 +404,13 @@
   <script type="module">
     import { auth, db } from './js/firebase-config.js';
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-    import { collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, query, where, writeBatch }
-      from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    import {
+      collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch
+    } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+    // ─── State ───────────────────────────────────────────
     let allData = [];
-    let displayColumns = [];
+    let columns = [];
     let hiddenCols = new Set();
     let sortKey = '';
     let sortAsc = true;
@@ -284,24 +418,21 @@
     let pieChart = null;
     let barChart = null;
 
-    // ── 安全驗證 ──────────────────────────────────────
+    // ─── Auth ─────────────────────────────────────────────
     onAuthStateChanged(auth, async user => {
       if (!user) { window.location.href = 'admin.html'; return; }
       try {
         const snap = await getDoc(doc(db, 'admins', user.email.toLowerCase()));
         if (!snap.exists()) {
-          alert('此帳號不在白名單內，請聯繫管理員。');
+          alert('此帳號不在白名單內');
           await signOut(auth);
           window.location.href = 'admin.html';
           return;
         }
-        document.getElementById('authOverlay').style.display = 'none';
         setConn(true);
+        document.getElementById('authOverlay').style.display = 'none';
         loadData();
-      } catch (e) {
-        setConn(false);
-        console.error(e);
-      }
+      } catch (e) { setConn(false); console.error(e); }
     });
 
     window.logout = async () => {
@@ -311,27 +442,37 @@
     function setConn(ok) {
       const lamp = document.getElementById('connLamp');
       const text = document.getElementById('connText');
-      lamp.className = 'lamp ' + (ok ? 'lamp-ok' : 'lamp-err');
+      lamp.style.background = ok ? '#22c55e' : '#ef4444';
+      lamp.style.boxShadow = ok ? '0 0 7px #22c55e' : 'none';
       text.textContent = ok ? '已連線' : '連線失敗';
       text.style.color = ok ? '#22c55e' : '#ef4444';
     }
 
-    // ── 資料載入 ──────────────────────────────────────
+    // ─── 生日標準化 ─────────────────────────────────────
+    function normBirth(raw) {
+      const s = String(raw).replace(/\D/g, '');
+      if (s.length === 7) return String(parseInt(s.substring(0,3)) + 1911) + s.substring(3);
+      return s;
+    }
+    function validId(id) { return /^[A-Z][12]\d{8}$/.test(id); }
+
+    // ─── 資料讀取 ────────────────────────────────────────
     async function loadData() {
-      const qs = await getDocs(collection(db, 'students'));
-      allData = qs.docs.map(d => {
-        const r = { _id: d.id, ...d.data() };
-        // 標準化欄位
-        r._sid = r.身份證號 || r.身分證號 || r.身分證字號 || r.身份證字號 || d.id;
-        r._name = r.姓名 || '';
-        r._class = r.班級 || '';
-        r._no = r.座號 || '';
-        r._status = r.報到狀態 || '未報到';
-        r._lang = r.本土語言名稱 || r.本土語 || '';
-        return r;
-      });
-      buildColumns();
-      renderAll();
+      try {
+        const qs = await getDocs(collection(db, 'students'));
+        allData = qs.docs.map(d => {
+          const r = { _docId: d.id, ...d.data() };
+          r._sid    = r.身份證號 || r.身分證號 || r.身分證字號 || d.id;
+          r._name   = r.姓名 || '';
+          r._class  = r.班級 || '';
+          r._no     = r.座號 || '';
+          r._status = r.報到狀態 || '未報到';
+          r._lang   = r.本土語言名稱 || r.本土語 || '';
+          return r;
+        });
+        buildColumns();
+        renderAll();
+      } catch (e) { console.error('載入失敗:', e); }
     }
 
     window.refreshData = loadData;
@@ -343,7 +484,7 @@
       }));
       const priority = ['報到狀態','班級','座號','姓名','身份證號','本土語言名稱'];
       const rest = [...keys].filter(k => !priority.includes(k)).sort();
-      displayColumns = [...priority.filter(k => keys.has(k)), ...rest];
+      columns = [...priority.filter(k => keys.has(k)), ...rest];
     }
 
     function renderAll() {
@@ -351,102 +492,108 @@
       renderTable();
       renderColToggles();
       renderLang();
+      renderAddList();
     }
 
-    // ── 統計分頁 ──────────────────────────────────────
+    // ─── 統計分頁 ────────────────────────────────────────
     function renderStats() {
-      const counts = { total: allData.length, online: 0, pending: 0, other: 0 };
-      const classCounts = {};
+      let online=0, pending=0, other=0;
       const statusCounts = {};
+      const classCounts = {};
 
       allData.forEach(s => {
         const st = s._status;
-        if (st === '已報到') counts.online++;
-        else if (st === '未報到') counts.pending++;
-        else counts.other++;
-        statusCounts[st] = (statusCounts[st] || 0) + 1;
-        if (s._class) classCounts[s._class] = (classCounts[s._class] || 0) + 1;
+        if (st === '已報到') online++;
+        else if (st === '未報到') pending++;
+        else other++;
+        statusCounts[st] = (statusCounts[st]||0)+1;
+        if (s._class) classCounts[s._class] = (classCounts[s._class]||0)+1;
       });
 
+      const total = allData.length;
       document.getElementById('statCards').innerHTML = [
-        { label: '新生總數', value: counts.total, color: '#3b82f6' },
-        { label: '已完成報到', value: counts.online, color: '#22c55e', sub: Math.round(counts.online/counts.total*100)+'%' },
-        { label: '尚未報到', value: counts.pending, color: '#ef4444' },
-        { label: '其他狀態', value: counts.other, color: '#f59e0b' },
+        { label:'新生總數',   val:total,   color:'#3b82f6' },
+        { label:'已完成報到', val:online,  color:'#22c55e', sub:Math.round(online/total*100)+'%' },
+        { label:'尚未報到',   val:pending, color:'#ef4444' },
+        { label:'其他狀態',   val:other,   color:'#f59e0b' },
       ].map(c => `
-        <div class="stat-card" style="border-color:${c.color}">
+        <div style="background:white;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-bottom:4px solid ${c.color}">
           <p style="font-size:11px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em">${c.label}</p>
-          <p style="font-size:36px;font-weight:900;color:${c.color};line-height:1.1;margin-top:6px">${c.value}</p>
-          ${c.sub ? `<p style="font-size:12px;color:#94a3b8;margin-top:4px">報到率 ${c.sub}</p>` : ''}
+          <p style="font-size:34px;font-weight:900;color:${c.color};line-height:1.1;margin-top:5px">${c.val}</p>
+          ${c.sub ? `<p style="font-size:12px;color:#94a3b8;margin-top:3px">報到率 ${c.sub}</p>` : ''}
         </div>`).join('');
 
-      // 圓餅圖
-      if (pieChart) pieChart.destroy();
-      pieChart = new Chart(document.getElementById('pieChart'), {
+      // ── 圓餅圖（修正版：maintainAspectRatio false + 有 height 的 wrapper）──
+      const pieCtx = document.getElementById('pieChart').getContext('2d');
+      if (pieChart) { pieChart.destroy(); pieChart = null; }
+      pieChart = new Chart(pieCtx, {
         type: 'doughnut',
         data: {
           labels: Object.keys(statusCounts),
-          datasets: [{ data: Object.values(statusCounts),
-            backgroundColor: ['#22c55e','#ef4444','#f59e0b','#8b5cf6','#06b6d4'], borderWidth: 0 }]
+          datasets: [{
+            data: Object.values(statusCounts),
+            backgroundColor: ['#22c55e','#ef4444','#f59e0b','#8b5cf6','#06b6d4'],
+            borderWidth: 0,
+          }]
         },
-        options: { responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,   // ← 關鍵：不強制維持比例
+          cutout: '65%',
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 14 } }
+          }
+        }
       });
 
-      // 長條圖
-      if (barChart) barChart.destroy();
+      // ── 長條圖 ──
+      const barCtx = document.getElementById('barChart').getContext('2d');
+      if (barChart) { barChart.destroy(); barChart = null; }
       const sortedClass = Object.entries(classCounts).sort((a,b) => a[0].localeCompare(b[0]));
-      barChart = new Chart(document.getElementById('barChart'), {
+      barChart = new Chart(barCtx, {
         type: 'bar',
         data: {
-          labels: sortedClass.map(e => e[0]),
-          datasets: [{ label: '人數', data: sortedClass.map(e => e[1]),
-            backgroundColor: '#3b82f6', borderRadius: 6 }]
+          labels: sortedClass.map(e=>e[0]),
+          datasets: [{ label:'人數', data: sortedClass.map(e=>e[1]), backgroundColor:'#3b82f6', borderRadius:6 }]
         },
-        options: { responsive: true, maintainAspectRatio: false,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        }
       });
     }
 
-    // ── 名冊分頁 ──────────────────────────────────────
+    // ─── 名冊分頁 ────────────────────────────────────────
     function renderColToggles() {
-      document.getElementById('colToggleArea').innerHTML = displayColumns.map(c => `
+      document.getElementById('colToggles').innerHTML = columns.map(c => `
         <button class="col-btn ${hiddenCols.has(c)?'off':'on'}" onclick="toggleCol('${c}')">${c}</button>
       `).join('');
     }
 
     window.toggleCol = c => {
       hiddenCols.has(c) ? hiddenCols.delete(c) : hiddenCols.add(c);
-      renderColToggles();
-      renderTable();
+      renderColToggles(); renderTable();
     };
 
     function getStatusBadge(status) {
-      const map = {
-        '已報到': 'badge-online',
-        '未報到': 'badge-pending',
-        '出國': 'badge-abroad',
-        '私校': 'badge-private',
-      };
-      const cls = map[status] || 'badge-other';
-      return `<span class="badge ${cls}">${status}</span>`;
+      const map = { '已報到':'badge-online','未報到':'badge-pending','出國':'badge-abroad','私校':'badge-private' };
+      return `<span class="badge ${map[status]||'badge-other'}">${status}</span>`;
     }
 
-    function renderTable(filter = '') {
-      const kw = filter.toLowerCase();
-      const visibleCols = displayColumns.filter(c => !hiddenCols.has(c));
-
+    window.renderTable = () => {
+      const kw = document.getElementById('listSearch').value.toLowerCase();
+      const visibleCols = columns.filter(c => !hiddenCols.has(c));
       const filtered = kw
-        ? allData.filter(s => s._name.includes(kw) || s._sid.toLowerCase().includes(kw) ||
-            (s._class||'').includes(kw) || (s._status||'').includes(kw))
+        ? allData.filter(s => s._name.includes(kw) || s._sid.toLowerCase().includes(kw) || (s._class||'').includes(kw) || s._status.includes(kw))
         : allData;
 
-      const sorted = [...filtered].sort((a, b) => {
+      const sorted = [...filtered].sort((a,b) => {
         if (!sortKey) return 0;
-        const vA = String(a[sortKey] || '');
-        const vB = String(b[sortKey] || '');
-        return sortAsc ? vA.localeCompare(vB, 'zh') : vB.localeCompare(vA, 'zh');
+        const vA = String(a[sortKey]||'');
+        const vB = String(b[sortKey]||'');
+        return sortAsc ? vA.localeCompare(vB,'zh') : vB.localeCompare(vA,'zh');
       });
 
       document.getElementById('tableHead').innerHTML = `<tr>
@@ -454,140 +601,125 @@
           <th onclick="setSort('${c}')" style="${sortKey===c?'color:#2563eb;background:#eff6ff':''}">
             ${c} ${sortKey===c?(sortAsc?'↑':'↓'):''}
           </th>`).join('')}
-        <th></th>
+        <th>操作</th>
       </tr>`;
 
       document.getElementById('tableBody').innerHTML = sorted.map(s => `
-        <tr onclick="openEdit('${s._id}')" style="cursor:pointer">
+        <tr onclick="openEdit('${s._docId}')">
           ${visibleCols.map(c => {
             let val = s[c] !== undefined ? s[c] : '';
             if (c === '報到狀態') val = getStatusBadge(s._status);
             return `<td>${val}</td>`;
           }).join('')}
-          <td><span style="color:#3b82f6;font-size:12px;font-weight:700">編輯</span></td>
+          <td><span style="color:#3b82f6;font-size:11px;font-weight:700">編輯</span></td>
         </tr>`).join('');
-    }
-
-    window.filterTable = () => renderTable(document.getElementById('listSearch').value);
+    };
 
     window.setSort = key => {
       if (sortKey === key) sortAsc = !sortAsc; else { sortKey = key; sortAsc = true; }
-      renderTable(document.getElementById('listSearch').value);
+      renderTable();
     };
 
-    // ── 搜尋分頁 ──────────────────────────────────────
+    // ─── 搜尋分頁 ────────────────────────────────────────
     window.searchStudent = () => {
       const kw = document.getElementById('searchInput').value.trim();
       const found = allData.find(s => s._name === kw || s._sid.toUpperCase() === kw.toUpperCase());
       const area = document.getElementById('searchResult');
       if (!found) {
-        area.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;color:#dc2626;font-weight:600">
-          查無此學生，請確認姓名或身分證字號是否正確。</div>`;
+        area.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:14px;color:#dc2626;font-weight:600">查無此學生</div>`;
         return;
       }
       area.innerHTML = `
-        <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:16px;padding:20px;text-align:left">
+        <div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:14px;padding:18px;text-align:left">
           <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
             <div>
-              <p style="font-size:22px;font-weight:900;color:#1e293b">${found._name}</p>
-              <p style="font-family:monospace;font-size:12px;color:#94a3b8">${found._sid}</p>
+              <p style="font-size:20px;font-weight:900">${found._name}</p>
+              <p style="font-family:monospace;color:#94a3b8;font-size:12px">${found._sid}</p>
             </div>
             ${getStatusBadge(found._status)}
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:16px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;margin-bottom:14px">
             <p>班級：<strong>${found._class||'未編'}</strong></p>
             <p>座號：<strong>${found._no||'未編'}</strong></p>
             <p>語言：<strong>${found._lang||'未填'}</strong></p>
-            <p>報到時間：<strong style="font-size:11px">${found.報到時間||'—'}</strong></p>
+            <p>報到：<strong style="font-size:11px">${found.報到時間||'—'}</strong></p>
           </div>
-          <button onclick="openEdit('${found._id}')"
+          <button onclick="openEdit('${found._docId}')"
             style="width:100%;background:#2563eb;color:white;border:none;padding:12px;border-radius:12px;font-weight:700;cursor:pointer">
             查看完整資料 / 修改
           </button>
         </div>`;
     };
 
-    // ── 本土語分頁 ──────────────────────────────────────
+    // ─── 本土語分頁 ──────────────────────────────────────
     function renderLang() {
       const groups = {};
       allData.forEach(s => {
-        const l = s._lang || '未填';
-        if (!groups[l]) groups[l] = [];
-        groups[l].push(s._name);
+        const l = s._lang || '未選修';
+        (groups[l] = groups[l]||[]).push(s._name);
       });
-
       document.getElementById('langCards').innerHTML = Object.entries(groups)
-        .sort((a,b) => b[1].length - a[1].length)
-        .map(([lang, names]) => `
-          <div style="background:white;border-radius:16px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border-left:4px solid #8b5cf6">
-            <p style="font-size:12px;font-weight:800;color:#94a3b8;margin-bottom:4px">${lang}</p>
-            <p style="font-size:32px;font-weight:900;color:#7c3aed">${names.length}
+        .sort((a,b) => b[1].length-a[1].length)
+        .map(([lang,names]) => `
+          <div style="background:white;border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-left:4px solid #8b5cf6">
+            <p style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:4px">${lang}</p>
+            <p style="font-size:30px;font-weight:900;color:#7c3aed">${names.length}
               <span style="font-size:14px;font-weight:400;color:#94a3b8">人</span>
             </p>
           </div>`).join('');
-
       document.getElementById('langGroups').innerHTML = Object.entries(groups)
-        .sort((a,b) => b[1].length - a[1].length)
-        .map(([lang, names]) => `
-          <div style="margin-bottom:16px">
-            <p style="font-weight:800;margin-bottom:6px">【${lang}】共 ${names.length} 人</p>
+        .sort((a,b) => b[1].length-a[1].length)
+        .map(([lang,names]) => `
+          <div style="margin-bottom:14px">
+            <p style="font-weight:800;margin-bottom:5px">【${lang}】共 ${names.length} 人</p>
             <p style="font-size:13px;color:#64748b;line-height:1.8">${names.join('、')}</p>
           </div>`).join('');
     }
 
-    // ── 編輯 Modal ──────────────────────────────────────
+    // ─── 編輯 Modal ──────────────────────────────────────
     window.openEdit = id => {
-      const s = allData.find(x => x._id === id);
+      const s = allData.find(x => x._docId === id);
       if (!s) return;
       editingId = id;
-      document.getElementById('editModalId').textContent = s._sid + ' / ' + s._name;
-      
-      const statusOptions = ['未報到','已報到','出國','私校','遷徙'].map(v =>
-        `<option value="${v}" ${s.報到狀態===v?'selected':''}>${v}</option>`).join('');
-
-      const fields = displayColumns.map(key => {
+      document.getElementById('editModalSub').textContent = s._sid + ' / ' + s._name;
+      document.getElementById('editFields').innerHTML = columns.map(key => {
         const val = s[key] !== undefined ? s[key] : '';
         const input = key === '報到狀態'
-          ? `<select data-key="${key}" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:13px;outline:none">${statusOptions}</select>`
-          : `<input type="text" data-key="${key}" value="${String(val).replace(/"/g,'&quot;')}"
+          ? `<select class="edit-input" data-key="${key}" style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:13px;outline:none">
+              ${['未報到','已報到','出國','私校','遷徙'].map(v=>`<option value="${v}" ${val===v?'selected':''}>${v}</option>`).join('')}
+            </select>`
+          : `<input type="text" class="edit-input" data-key="${key}" value="${String(val).replace(/"/g,'&quot;')}"
               style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:13px;outline:none">`;
         return `<div class="form-field"><label>${key}</label>${input}</div>`;
       }).join('');
-
-      document.getElementById('editFields').innerHTML = fields;
       document.getElementById('editModal').classList.add('open');
     };
 
     window.closeModal = () => document.getElementById('editModal').classList.remove('open');
 
     document.getElementById('saveBtn').onclick = async () => {
-      const inputs = document.querySelectorAll('#editFields [data-key]');
       const updates = {};
-      inputs.forEach(el => { updates[el.dataset.key] = el.value; });
+      document.querySelectorAll('.edit-input').forEach(el => { updates[el.dataset.key] = el.value; });
       await updateDoc(doc(db, 'students', editingId), updates);
-      closeModal();
-      loadData();
+      closeModal(); loadData();
     };
 
-    // ── 編班比對 ──────────────────────────────────────
+    // ─── 編班比對 ────────────────────────────────────────
     window.runMatch = async () => {
       const cls = document.getElementById('classInput').value.trim();
       const raw = document.getElementById('classNameList').value.trim();
       const log = document.getElementById('matchLog');
-      if (!cls || !raw) return alert('請填寫班級與名單');
-
-      log.innerHTML = `> 開始處理班級 ${cls}...\n`;
-      const lines = raw.split('\n');
+      if (!cls || !raw) return alert('請填班級與名單');
+      log.innerHTML = `> 開始處理 ${cls} 班...\n`;
       const batch = writeBatch(db);
-      let ok = 0, fail = 0;
-
-      for (const line of lines) {
+      let ok=0, fail=0;
+      for (const line of raw.split('\n')) {
         const parts = line.trim().split(/\s+/);
         if (parts.length < 2) continue;
         const no = parts[0], name = parts.slice(1).join('');
         const s = allData.find(x => x._name === name);
         if (s) {
-          batch.update(doc(db, 'students', s._id), { 班級: cls, 座號: no });
+          batch.update(doc(db,'students',s._docId), { 班級:cls, 座號:no });
           log.innerHTML += `<span style="color:#4ade80">✓ ${name} → ${cls}班${no}號</span>\n`;
           ok++;
         } else {
@@ -596,28 +728,141 @@
         }
       }
       await batch.commit();
-      log.innerHTML += `\n> 完成！成功 ${ok} 筆，失敗 ${fail} 筆。`;
+      log.innerHTML += `\n> 完成！成功 ${ok}，失敗 ${fail}`;
       loadData();
     };
 
-    // ── 匯入 Excel ──────────────────────────────────────
+    // ─── 手動新增名單（單筆）────────────────────────────
+    window.addSingleStudent = async () => {
+      const name  = document.getElementById('add_name').value.trim();
+      const id    = document.getElementById('add_id').value.trim().toUpperCase();
+      const birth = document.getElementById('add_birth').value.trim();
+      const status= document.getElementById('add_status').value;
+      const note  = document.getElementById('add_note').value.trim();
+      const msg   = document.getElementById('addMsg');
+
+      const showMsg = (txt, ok) => {
+        msg.textContent = txt;
+        msg.style.background = ok ? 'rgba(34,197,94,0.1)'  : 'rgba(239,68,68,0.1)';
+        msg.style.color       = ok ? '#22c55e' : '#ef4444';
+        msg.style.display = 'block';
+        setTimeout(() => msg.style.display='none', 4000);
+      };
+
+      if (!name||!id||!birth) return showMsg('請填寫姓名、身分證字號與出生日期', false);
+      if (!validId(id)) return showMsg('身分證字號格式不正確（首字大寫英文＋9碼數字）', false);
+
+      const birthNorm = normBirth(birth);
+      if (birthNorm.length < 7) return showMsg('出生日期格式不正確', false);
+
+      const existing = await getDoc(doc(db,'students',id));
+      if (existing.exists()) return showMsg(`⚠️ ${id} 已存在，請勿重複新增`, false);
+
+      await setDoc(doc(db,'students',id), {
+        姓名:name, 身份證號:id, 出生日期:birthNorm,
+        報到狀態:status, 備註:note,
+        新增方式:'手動新增', 新增時間: new Date().toLocaleString('zh-TW',{hour12:false})
+      });
+
+      showMsg(`✅ ${name} 已成功新增`, true);
+      ['add_name','add_id','add_birth','add_note'].forEach(id => document.getElementById(id).value='');
+      loadData();
+    };
+
+    // ─── 手動新增（批次）────────────────────────────────
+    window.batchAdd = async () => {
+      const raw = document.getElementById('batchInput').value.trim();
+      const log = document.getElementById('batchLog');
+      log.innerHTML = '';
+      let ok=0, dup=0, err=0;
+
+      for (const line of raw.split('\n')) {
+        if (!line.trim()) continue;
+        const parts = line.trim().split(/[\s\t]+/);
+        if (parts.length < 3) {
+          log.innerHTML += `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <span class="status-tag tag-err" style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">格式錯誤</span>
+            <span style="color:#94a3b8">${line}</span></div>`;
+          err++; continue;
+        }
+        const [pName, rawId, rawBirth] = parts;
+        const id = rawId.toUpperCase();
+        const birth = normBirth(rawBirth);
+        if (!validId(id)) {
+          log.innerHTML += `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <span class="status-tag tag-err" style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">ID格式錯</span>
+            <span>${pName} — ${id}</span></div>`;
+          err++; continue;
+        }
+        const existing = await getDoc(doc(db,'students',id));
+        if (existing.exists()) {
+          log.innerHTML += `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
+            <span class="status-tag tag-dup" style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">已存在</span>
+            <span>${pName} — ${id}</span></div>`;
+          dup++; continue;
+        }
+        await setDoc(doc(db,'students',id), {
+          姓名:pName, 身份證號:id, 出生日期:birth,
+          報到狀態:'未報到', 新增方式:'批次新增',
+          新增時間: new Date().toLocaleString('zh-TW',{hour12:false})
+        });
+        log.innerHTML += `<div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span class="status-tag tag-ok" style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700">✓ 成功</span>
+          <span>${pName} — ${id}</span></div>`;
+        ok++;
+      }
+      log.innerHTML = `<div style="padding:6px;color:#64748b;font-size:12px;font-weight:700">完成：成功 ${ok}，重複 ${dup}，失敗 ${err}</div>` + log.innerHTML;
+      document.getElementById('batchInput').value = '';
+      loadData();
+    };
+
+    // ─── 速覽名單（手動新增分頁）────────────────────────
+    window.renderAddList = () => {
+      const kw = document.getElementById('addListSearch').value.toLowerCase();
+      const data = kw
+        ? allData.filter(s => s._name.includes(kw) || s._sid.toLowerCase().includes(kw))
+        : allData;
+      document.getElementById('addListCount').textContent = `共 ${allData.length} 筆`;
+      document.getElementById('addStudentList').innerHTML = data.map(s => {
+        const st = s._status;
+        const stColor = st==='已報到'?'#22c55e':st==='未報到'?'#f5a623':'#94a3b8';
+        return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:#0f172a;border-radius:10px;border:1px solid #1e293b;font-size:13px">
+          <span style="font-weight:700;min-width:70px;color:white">${s._name}</span>
+          <span style="font-family:monospace;color:#64748b;font-size:11px;min-width:110px">${s._sid}</span>
+          <span style="color:#475569;min-width:80px">${s.出生日期||'—'}</span>
+          <span style="font-weight:700;color:${stColor}">${st}</span>
+          <button onclick="deleteStudent('${s._docId}')"
+            style="margin-left:auto;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700">
+            刪除
+          </button>
+        </div>`;
+      }).join('');
+    };
+
+    window.deleteStudent = async docId => {
+      const s = allData.find(x => x._docId === docId);
+      if (!confirm(`確定刪除 ${s?._name||docId}？`)) return;
+      await deleteDoc(doc(db,'students',docId));
+      loadData();
+    };
+
+    // ─── Excel 匯入 ──────────────────────────────────────
     window.importExcel = () => {
       const file = document.getElementById('importFile').files[0];
       const status = document.getElementById('importStatus');
       if (!file) return alert('請選擇 Excel 檔案');
-      status.textContent = '讀取中...';
-
+      status.textContent = '讀取中...'; status.style.color = '#64748b';
       const reader = new FileReader();
       reader.onload = async e => {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
         let count = 0;
         for (const row of rows) {
-          const id = (row['身份證號'] || row['身分證號'] || row['身分證字號'] || '').toString().trim().toUpperCase();
+          const id = (row['身份證號']||row['身分證號']||row['身分證字號']||'').toString().trim().toUpperCase();
           if (!id) continue;
           row['身份證號'] = id;
           if (!row['報到狀態']) row['報到狀態'] = '未報到';
-          await setDoc(doc(db, 'students', id), row, { merge: true });
+          await setDoc(doc(db,'students',id), row, { merge:true });
           count++;
         }
         status.textContent = `✅ 匯入完成，共 ${count} 筆`;
@@ -627,42 +872,29 @@
       reader.readAsArrayBuffer(file);
     };
 
-    // ── 建立測試生 ──────────────────────────────────────
-    window.createTestStudent = async () => {
-      await setDoc(doc(db, 'students', 'T123456789'), {
-        姓名: '測試員', 身份證號: 'T123456789',
-        出生日期: '2017-01-01', 報到狀態: '未報到',
-        班級: '', 座號: ''
-      }, { merge: true });
-      alert('測試生已建立！\n身分證：T123456789\n生日：2017-01-01');
-      loadData();
-    };
-
-    // ── 年度重置 ──────────────────────────────────────
-    document.getElementById('resetInput').oninput = e => {
+    // ─── 重置 ────────────────────────────────────────────
+    window.checkResetInput = () => {
       const btn = document.getElementById('resetBtn');
-      btn.disabled = e.target.value !== '確認清空';
-      btn.style.opacity = e.target.value === '確認清空' ? '1' : '0.3';
+      const val = document.getElementById('resetInput').value;
+      btn.disabled = val !== '確認清空';
+      btn.style.opacity = val === '確認清空' ? '1' : '0.25';
     };
 
     window.resetData = async () => {
-      if (!confirm('確定要刪除所有學生資料？此操作無法復原！')) return;
-      const qs = await getDocs(collection(db, 'students'));
+      if (!confirm('確定刪除所有學生資料？此操作無法復原！')) return;
+      const qs = await getDocs(collection(db,'students'));
       const batch = writeBatch(db);
-      qs.docs.forEach(d => batch.delete(doc(db, 'students', d.id)));
+      qs.docs.forEach(d => batch.delete(doc(db,'students',d.id)));
       await batch.commit();
-      alert('已清空所有資料');
-      document.getElementById('resetInput').value = '';
-      document.getElementById('resetBtn').disabled = true;
-      document.getElementById('resetBtn').style.opacity = '0.3';
-      loadData();
+      alert('已清空'); document.getElementById('resetInput').value='';
+      checkResetInput(); loadData();
     };
 
-    // ── 匯出 Excel ──────────────────────────────────────
+    // ─── Excel 匯出 ──────────────────────────────────────
     window.exportExcel = () => {
       const exportData = allData.map(s => {
         const row = {};
-        displayColumns.forEach(c => { row[c] = s[c] !== undefined ? s[c] : ''; });
+        columns.forEach(c => { row[c] = s[c] !== undefined ? s[c] : ''; });
         return row;
       });
       const ws = XLSX.utils.json_to_sheet(exportData);
@@ -671,7 +903,7 @@
       XLSX.writeFile(wb, `新莊國小新生名冊_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
     };
 
-    // ── 分頁切換 ──────────────────────────────────────
+    // ─── 分頁切換 ────────────────────────────────────────
     document.querySelectorAll('.nav-btn[data-target]').forEach(btn => {
       btn.onclick = () => {
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -684,4 +916,3 @@
   </script>
 </body>
 </html>
-
