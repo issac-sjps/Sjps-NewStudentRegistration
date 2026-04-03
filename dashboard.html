@@ -156,7 +156,8 @@
       <button class="nav-btn active" data-target="statsPanel">📊 報到統計</button>
       <button class="nav-btn" data-target="searchPanel">🔍 學生查詢</button>
       <button class="nav-btn" data-target="listPanel">🗂️ 名冊管理</button>
-      <button class="nav-btn" data-target="langPanel">🗣️ 語言統計</button>
+      <button class="nav-btn" data-target="pendingPanel">📋 未報到統計</button>
+      <button class="nav-btn" data-target="addressPanel">🏠 戶籍上傳</button>
       <button class="nav-btn" data-target="classPanel">✏️ 編班比對</button>
       <button class="nav-btn" data-target="addPanel">➕ 手動新增名單</button>
       <button class="nav-btn" data-target="importPanel">📥 Excel 匯入</button>
@@ -246,13 +247,81 @@
       </div>
     </div>
 
-    <!-- 🗣️ 語言 -->
-    <div id="langPanel" class="panel" style="padding:28px;gap:18px;overflow-y:auto">
-      <h2 style="font-size:22px;font-weight:900">🗣️ 本土語言選修統計</h2>
-      <div id="langCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px"></div>
-      <div style="background:white;border-radius:16px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
-        <p style="font-weight:800;margin-bottom:14px">選修名冊（依語言分組）</p>
-        <div id="langGroups"></div>
+    <!-- 📋 未報到統計 -->
+    <div id="pendingPanel" class="panel" style="padding:24px;gap:14px">
+      <div style="background:white;border-radius:14px;padding:14px 18px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h2 style="font-size:18px;font-weight:900">📋 未報到學生名單</h2>
+            <p id="pendingCountText" style="font-size:12px;color:#94a3b8;margin-top:3px"></p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="pendingSearch" placeholder="搜尋姓名..."
+              style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;font-size:13px;outline:none;width:160px"
+              oninput="renderPending()">
+            <button onclick="exportPendingExcel()"
+              style="background:#dc2626;color:white;border:none;padding:8px 16px;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px">
+              ⬇ 匯出未報到
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style="background:white;border-radius:14px;flex:1;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+        <div class="tbl-wrap">
+          <table>
+            <thead id="pendingHead"></thead>
+            <tbody id="pendingBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🏠 戶籍上傳 -->
+    <div id="addressPanel" class="panel" style="padding:24px;gap:16px;overflow-y:auto;background:#f8fafc">
+      <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+        <h2 style="font-size:18px;font-weight:900;margin-bottom:6px">🏠 未報到學生戶籍上傳</h2>
+        <p style="font-size:13px;color:#64748b;line-height:1.7">
+          貼上戶籍資料後，系統依<strong>姓名＋身分證末三碼</strong>比對，自動將地址寫入「聯絡地址」欄位。<br>
+          <span style="color:#059669;font-weight:700">✓ 不影響家長端報到功能</span>，家長報到時地址欄位會有預填值，可修改。
+        </p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+          <p style="font-weight:800;font-size:14px;margin-bottom:8px;color:#1e293b">貼上戶籍資料</p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#64748b">
+            <p style="font-weight:700;color:#374151;margin-bottom:6px">格式（每行一筆，用空格或 Tab 分隔）：</p>
+            <code style="color:#2563eb">姓名 身分證末3碼 完整地址</code>
+            <p style="margin-top:6px;color:#94a3b8">例：王小明 789 高雄市仁武區仁雄路100號</p>
+          </div>
+          <textarea id="addressInput" rows="12"
+            style="width:100%;border:2px solid #e2e8f0;border-radius:10px;padding:12px;font-family:monospace;font-size:12px;outline:none;resize:vertical;line-height:1.8"
+            placeholder="王小明 789 高雄市仁武區仁雄路100號&#10;李大華 456 高雄市仁武區中正路200號"></textarea>
+          <button onclick="runAddressMatch()"
+            style="width:100%;margin-top:12px;background:#2563eb;color:white;border:none;padding:14px;border-radius:12px;font-weight:900;font-size:15px;cursor:pointer">
+            🔍 執行比對並寫入戶籍
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+            <p style="font-weight:800;font-size:14px;margin-bottom:12px;color:#1e293b">比對結果</p>
+            <div id="addressLog"
+              style="background:#0f172a;color:#4ade80;font-family:monospace;font-size:11px;padding:14px;border-radius:10px;height:260px;overflow-y:auto;line-height:2">
+              > 等待執行...
+            </div>
+          </div>
+          <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <p style="font-weight:800;font-size:14px;color:#1e293b">已填入戶籍的未報到學生</p>
+              <button onclick="exportAddressExcel()"
+                style="background:#059669;color:white;border:none;padding:7px 14px;border-radius:8px;font-weight:700;cursor:pointer;font-size:12px">
+                ⬇ 匯出寄信名單
+              </button>
+            </div>
+            <div id="addressFilledList" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
+              <p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px">執行比對後顯示</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -491,7 +560,7 @@
       renderStats();
       renderTable();
       renderColToggles();
-      renderLang();
+      renderPending();
       renderAddList();
     }
 
@@ -651,30 +720,133 @@
         </div>`;
     };
 
-    // ─── 本土語分頁 ──────────────────────────────────────
-    function renderLang() {
-      const groups = {};
-      allData.forEach(s => {
-        const l = s._lang || '未選修';
-        (groups[l] = groups[l]||[]).push(s._name);
+
+
+    // ─── 未報到統計分頁 ──────────────────────────────────
+    window.renderPending = () => {
+      const kw = (document.getElementById('pendingSearch')?.value || '').toLowerCase();
+      const pending = allData.filter(s => s._status === '未報到' || s._status === '');
+      const filtered = kw ? pending.filter(s => s._name.includes(kw)) : pending;
+
+      document.getElementById('pendingCountText').textContent =
+        `共 ${pending.length} 人未報到，顯示 ${filtered.length} 筆`;
+
+      const cols = ['姓名','身份證號','出生日期','班級','座號','聯絡地址','聯絡電話','報到狀態'];
+      document.getElementById('pendingHead').innerHTML = `<tr>
+        ${cols.map(c => `<th>${c}</th>`).join('')}
+        <th>操作</th>
+      </tr>`;
+      document.getElementById('pendingBody').innerHTML = filtered.map(s => `
+        <tr onclick="openEdit('${s._docId}')">
+          ${cols.map(c => {
+            let val = s[c] !== undefined ? s[c] : '';
+            if (c === '報到狀態') val = getStatusBadge(s._status || '未報到');
+            if (c === '聯絡地址' && val) val = `<span style="color:#059669;font-weight:600">${val}</span>`;
+            return `<td>${val||'—'}</td>`;
+          }).join('')}
+          <td><span style="color:#3b82f6;font-size:11px;font-weight:700">編輯</span></td>
+        </tr>`).join('');
+    };
+
+    window.exportPendingExcel = () => {
+      const pending = allData.filter(s => s._status === '未報到' || s._status === '');
+      const exportCols = ['姓名','身份證號','出生日期','班級','座號','聯絡地址','聯絡電話',
+        '父親手機號碼','母親手機號碼','緊急聯絡人姓名','緊急聯絡人電話','報到狀態'];
+      const rows = pending.map(s => {
+        const row = {};
+        exportCols.forEach(c => { row[c] = s[c] !== undefined ? s[c] : ''; });
+        return row;
       });
-      document.getElementById('langCards').innerHTML = Object.entries(groups)
-        .sort((a,b) => b[1].length-a[1].length)
-        .map(([lang,names]) => `
-          <div style="background:white;border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,0.05);border-left:4px solid #8b5cf6">
-            <p style="font-size:12px;color:#94a3b8;font-weight:700;margin-bottom:4px">${lang}</p>
-            <p style="font-size:30px;font-weight:900;color:#7c3aed">${names.length}
-              <span style="font-size:14px;font-weight:400;color:#94a3b8">人</span>
-            </p>
-          </div>`).join('');
-      document.getElementById('langGroups').innerHTML = Object.entries(groups)
-        .sort((a,b) => b[1].length-a[1].length)
-        .map(([lang,names]) => `
-          <div style="margin-bottom:14px">
-            <p style="font-weight:800;margin-bottom:5px">【${lang}】共 ${names.length} 人</p>
-            <p style="font-size:13px;color:#64748b;line-height:1.8">${names.join('、')}</p>
-          </div>`).join('');
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '未報到名單');
+      XLSX.writeFile(wb, `未報到學生名單_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
+    };
+
+    // ─── 戶籍比對寫入 ────────────────────────────────────
+    window.runAddressMatch = async () => {
+      const raw = document.getElementById('addressInput').value.trim();
+      const log = document.getElementById('addressLog');
+      if (!raw) return;
+
+      log.innerHTML = '> 開始比對...\n';
+      const lines = raw.split('\n').filter(l => l.trim());
+      let ok=0, fail=0;
+
+      for (const line of lines) {
+        // 每行格式：姓名 身分證末3碼 地址（地址可能含空格，所以只拆前兩欄）
+        const parts = line.trim().split(/\s+/);
+        if (parts.length < 3) {
+          log.innerHTML += `<span style="color:#f87171">✗ 格式錯誤：${line}</span>\n`;
+          fail++; continue;
+        }
+        const inputName = parts[0];
+        const inputLast3 = parts[1].toUpperCase();
+        // 地址是剩下所有部分合併（有些地址中間有空格）
+        const address = parts.slice(2).join(' ');
+
+        // 比對：姓名完全相符 + 身分證末三碼相符
+        const matched = allData.find(s => {
+          const nameMatch = s._name === inputName;
+          const sid = s._sid || '';
+          const last3 = sid.slice(-3).toUpperCase();
+          return nameMatch && last3 === inputLast3;
+        });
+
+        if (!matched) {
+          log.innerHTML += `<span style="color:#f87171">✗ 找不到：${inputName}（末三碼 ${inputLast3}）</span>\n`;
+          fail++; continue;
+        }
+
+        // 寫入聯絡地址
+        await updateDoc(doc(db, 'students', matched._docId), { 聯絡地址: address });
+        // 同步更新本地資料
+        matched.聯絡地址 = address;
+        log.innerHTML += `<span style="color:#4ade80">✓ ${inputName} → ${address}</span>\n`;
+        ok++;
+      }
+
+      log.innerHTML += `\n> 完成！成功 ${ok} 筆，失敗 ${fail} 筆`;
+      // 更新已填入名單
+      renderAddressFilledList();
+      renderPending(); // 同步更新未報到分頁
+      loadData();
+    };
+
+    function renderAddressFilledList() {
+      const list = allData.filter(s =>
+        (s._status === '未報到' || !s._status) && s.聯絡地址
+      );
+      const el = document.getElementById('addressFilledList');
+      if (!list.length) {
+        el.innerHTML = '<p style="color:#94a3b8;font-size:13px;text-align:center;padding:10px">尚無資料</p>';
+        return;
+      }
+      el.innerHTML = list.map(s => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px">
+          <span style="font-weight:700;min-width:60px">${s._name}</span>
+          <span style="font-family:monospace;color:#64748b;min-width:100px;font-size:11px">${s._sid}</span>
+          <span style="color:#15803d;flex:1">${s.聯絡地址}</span>
+        </div>`).join('');
     }
+
+    window.exportAddressExcel = () => {
+      const list = allData.filter(s =>
+        (s._status === '未報到' || !s._status) && s.聯絡地址
+      );
+      if (!list.length) return alert('尚無已填入戶籍的未報到學生');
+      const exportCols = ['姓名','身份證號','出生日期','聯絡地址','聯絡電話',
+        '父親手機號碼','母親手機號碼','報到狀態'];
+      const rows = list.map(s => {
+        const row = {};
+        exportCols.forEach(c => { row[c] = s[c] !== undefined ? s[c] : ''; });
+        return row;
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '寄信名單');
+      XLSX.writeFile(wb, `未報到寄信名單_${new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')}.xlsx`);
+    };
 
     // ─── 編輯 Modal ──────────────────────────────────────
     window.openEdit = id => {
